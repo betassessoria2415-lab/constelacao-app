@@ -10,7 +10,7 @@
     anoVirada: null,             // null = calcula: próximo 1º de janeiro
     diasDegustacao: 7,           // dias de Clube liberado para quem acabou de entrar
     segredoClube: "0f8b129d30d699e4f46a5751271b175facec",  // gera o código mensal do Clube (veja dono/gerador-de-codigos.html)
-    checkouts: {},               // links de compra por portal: { profundo: "https://...", ano: "...", lua: "...", amor: "...", nome: "...", clube: "..." }
+    checkouts: { profundo: "https://pay.kiwify.com.br/o8GJp7z", lua: "https://pay.kiwify.com.br/o8GJp7z", amor: "https://pay.kiwify.com.br/o8GJp7z", clube: "https://pay.kiwify.com.br/o8GJp7z" },               // links de compra por portal: { profundo: "https://...", ano: "...", lua: "...", amor: "...", nome: "...", clube: "..." }
     hashes: {},                  // hashes SHA-256 dos códigos por portal: { profundo: ["..."], ... }
     codigoMestreHash: "2faf1d7247a922a61ebdf0e5825eaf302abd1fc9f47af2504e5cdb17fffa62f7"         // opcional: hash de um código que abre qualquer portal (para suporte)
   };

@@ -20,10 +20,10 @@
       ${deg ? `<div class="card ouro-b"><div class="mini" style="margin-bottom:6px">Degustação do Clube</div><p style="margin:0">Você tem acesso completo ao Clube por mais <b>${restam} ${restam === 1 ? "dia" : "dias"}</b>. Depois, a previsão do mês e os ciclos da Lua pedem o código do mês.</p></div>` : ""}
       ${P.CATALOGO.map(p => { const ok = P.liberado(p.id) && !(p.id === "clube" && deg), r = ROTAS[p.id];
         return `<div class="card clique portal-card ${ok ? "" : "neon"}" data-ir="${r[0]}" data-sub='"${r[1]}"'>${ok ? "" : '<span class="brilho v"></span>'}
-          <div class="card-cab"><span class="portal-ic">${p.icone}</span><span class="chip ${ok ? "verde" : "ouro"}">${ok ? "liberado ✓" : e(p.preco)}</span></div>
+          <div class="card-cab"><span class="portal-ic">${p.icone}</span><span class="chip ${ok ? "verde" : "ouro"}">${ok ? "liberado ✓" : p.plano ? "plano " + e(p.plano) : e(p.preco)}</span></div>
           <h3>${e(p.nome)}</h3><p class="sub" style="margin:6px 0 10px">${e(p.chamada)}</p>
           <ul class="lista compacta">${p.beneficios.slice(0, 3).map(b => `<li><span class="ic">✦</span><span>${e(b)}</span></li>`).join("")}</ul>
-          ${ok ? "" : `<button class="btn primario pequeno" data-portal="${p.id}" style="width:100%;margin-top:12px">Liberar ${e(p.nome)}</button>`}
+          ${ok ? "" : `<button class="btn primario pequeno" data-portal="${p.id}" style="width:100%;margin-top:12px">${p.plano ? "Assinar o plano " + e(p.plano) : "Liberar " + e(p.nome)}</button>`}
         </div>`; }).join("")}
       <p class="aviso center">Os códigos chegam no e-mail da compra e liberam este aparelho. Conteúdo simbólico, para reflexão.</p>
     </section>`;
