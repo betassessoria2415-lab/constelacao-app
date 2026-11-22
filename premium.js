@@ -56,6 +56,7 @@ window.PREMIUM = (function () {
 
   function liberado(id) {
     const C = window.CDA; if (!C || !C.S) return false;
+    if (window.CONTA && CONTA.direito(id)) return true;        // comprado e confirmado pelo servidor
     const S = C.S, v = (S.portais || {})[id];
     if (id === "clube") {
       if (v === ym()) return true;
@@ -64,7 +65,7 @@ window.PREMIUM = (function () {
     }
     return v === true;
   }
-  function degustando() { const C = window.CDA; return !!C && C.S.portais.clube !== ym() && liberado("clube"); }
+  function degustando() { const C = window.CDA; return !!C && C.S.portais.clube !== ym() && !(window.CONTA && CONTA.direito("clube")) && liberado("clube"); }
 
   function validar(id, codigo) {
     const C = window.CDA, p = porId(id), cod = (codigo || "").trim().toUpperCase(); if (!p || !cod) return false;
@@ -108,6 +109,7 @@ window.PREMIUM = (function () {
       <label>Já tenho o código</label>
       <div style="display:flex;gap:8px"><input id="folha-cod" autocomplete="off" placeholder="${p.mensal ? "CLUBE-XXXXXX" : "SEU-CÓDIGO"}"><button class="btn neon pequeno" id="folha-ok" style="flex:0 0 auto">Liberar</button></div>
       <p class="aviso center" style="margin:12px 0 0">O código chega no e-mail da compra e libera este aparelho.</p>
+      <button class="btn fantasma pequeno" id="folha-conta" style="width:100%;margin-top:10px">Comprei com meu e-mail: entrar na conta</button>
     </div>`;
     document.body.appendChild(el);
     requestAnimationFrame(() => el.classList.add("on"));
@@ -117,6 +119,7 @@ window.PREMIUM = (function () {
       if (validar(id, el.querySelector("#folha-cod").value)) { fechar(); C.celebrar(); C.toast(`${p.nome} liberado ✦`); setTimeout(() => C.render(true), 500); }
       else C.toast("Código não reconhecido. Confira o e-mail da compra.");
     };
+    el.querySelector("#folha-conta").onclick = () => { fechar(); C.ir("eu"); };
     el.querySelector("#folha-ok").onclick = tentar;
     el.querySelector("#folha-cod").onkeydown = ev => { if (ev.key === "Enter") tentar(); };
   }

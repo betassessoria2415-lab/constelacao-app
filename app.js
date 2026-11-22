@@ -29,7 +29,7 @@
   function toast(msg) { toastEl.textContent = msg; toastEl.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => toastEl.classList.remove("on"), 2600); }
 
   /* ---------- estado ---------- */
-  const padrao = () => ({ perfil: null, estrelas: {}, dias: {}, presencas: {}, sinais: [], melhorSeq: 0, luas: {}, pessoas: [], mesVisto: "", portais: {}, foco: "", genero: "f", nascHora: "", nascCidade: "", encerramento: {}, passos: {}, acesso: false, criadoEm: new Date().toISOString() });
+  const padrao = () => ({ perfil: null, estrelas: {}, dias: {}, presencas: {}, sinais: [], melhorSeq: 0, luas: {}, pessoas: [], mesVisto: "", portais: {}, direitos: {}, direitosEm: 0, contaEmail: "", acessoPor: "", foco: "", genero: "f", nascHora: "", nascCidade: "", encerramento: {}, passos: {}, acesso: false, criadoEm: new Date().toISOString() });
   let S = padrao();
   function carregar() {
     try { const raw = localStorage.getItem(CONFIG.chave); if (raw) S = Object.assign(padrao(), JSON.parse(raw)); }
@@ -175,15 +175,51 @@
   const progresso = () => Object.values(S.estrelas).filter(e => e.feita).length;
   const proximaEstrela = () => ESTRELAS.find(e => !(S.estrelas[e.n] && S.estrelas[e.n].feita)) || ESTRELAS[29];
 
+  /* ---------- conta: login por e-mail e direitos comprados ---------- */
+  let contaEtapa = null;   // { email } depois que o e-mail de acesso foi pedido
+  const NOME_PORTAL = { base: "Acesso ao app", profundo: "Mapa Profundo", ano: "Previsão 2027", lua: "Lua e Ascendente", amor: "Amor e Vínculos", nome: "Nome de Poder", clube: "Clube" };
+  function contaHTML() {
+    if (!window.CONTA) return "";
+    if (CONTA.logada()) {
+      const d = S.direitos || {}, itens = Object.keys(d).filter(k => CONTA.valido(d[k]));
+      return `<div class="mini" style="margin-bottom:8px">Minha conta</div>
+        <p style="margin:0 0 8px">Conectada como <b>${esc(CONTA.email())}</b></p>
+        ${itens.length ? itens.map(k => `<span class="chip verde" style="margin:0 6px 6px 0">${esc(NOME_PORTAL[k] || k)}${d[k] === "vitalicio" ? "" : " até " + fmtCurta(d[k].slice(0, 10)).slice(0, 5)}</span>`).join("") : `<p class="sub" style="margin:0 0 8px">Nenhuma compra encontrada para este e-mail ainda. Se você acabou de pagar, toque em Atualizar em alguns minutos.</p>`}
+        <div class="linha-btn" style="margin-top:10px"><button class="btn fantasma pequeno" id="ct-sync">Atualizar acessos</button><button class="btn fantasma pequeno" id="ct-sair">Sair</button></div>`;
+    }
+    if (contaEtapa) return `<div class="mini" style="margin-bottom:8px">Confirme seu e-mail</div>
+        <p class="sub" style="margin-bottom:10px">Enviamos um e-mail para <b>${esc(contaEtapa.email)}</b>. Toque no link dele ou digite aqui o código de 6 dígitos.</p>
+        <div style="display:flex;gap:8px"><input id="ct-cod" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="000000"><button class="btn primario pequeno" id="ct-verificar" style="flex:0 0 auto">Entrar</button></div>
+        <button class="btn fantasma pequeno" id="ct-voltar" style="width:100%;margin-top:10px">Usar outro e-mail</button>`;
+    return `<div class="mini" style="margin-bottom:8px">Entrar com o e-mail da compra</div>
+        <p class="sub" style="margin-bottom:10px">Seus acessos ficam ligados ao e-mail e valem em qualquer aparelho. Sem senha: você recebe um link.</p>
+        <div style="display:flex;gap:8px"><input id="ct-email" type="email" autocomplete="email" placeholder="voce@email.com"><button class="btn primario pequeno" id="ct-enviar" style="flex:0 0 auto">Receber link</button></div>`;
+  }
+  function ligarConta() {
+    if (!window.CONTA) return;
+    const falha = (onde, e) => { console.warn("[conta] " + onde + ":", e); toast(/rate|limit|429/i.test(e.message || "") ? "Muitos pedidos em pouco tempo. Tente de novo em alguns minutos." : "Não deu certo agora. Confira a internet e tente de novo."); };
+    const env = $("#ct-enviar"); if (env) { const enviar = async () => { const em = ($("#ct-email").value || "").trim(); if (!/^\S+@\S+\.\S+$/.test(em)) return toast("Digite um e-mail válido."); env.disabled = true; env.textContent = "Enviando…";
+      try { await CONTA.pedirAcesso(em); contaEtapa = { email: em }; render(true); toast("E-mail enviado ✦ confira sua caixa de entrada"); } catch (e) { env.disabled = false; env.textContent = "Receber link"; falha("pedido de acesso", e); } };
+      env.onclick = enviar; $("#ct-email").onkeydown = e => { if (e.key === "Enter") enviar(); }; }
+    const ver = $("#ct-verificar"); if (ver) { const verificar = async () => { const cod = ($("#ct-cod").value || "").trim(); if (cod.length < 6) return toast("Digite o código do e-mail."); ver.disabled = true;
+      try { await CONTA.verificarCodigo(contaEtapa.email, cod); contaEtapa = null; await CONTA.sincronizar(); toast(S.acesso ? "Você entrou ✦" : "Entrou, mas não achei compra neste e-mail."); render(true); } catch (e) { ver.disabled = false; console.warn("[conta] código:", e); toast("Código inválido ou vencido. Peça um novo e-mail."); } };
+      ver.onclick = verificar; $("#ct-cod").onkeydown = e => { if (e.key === "Enter") verificar(); }; }
+    const vol = $("#ct-voltar"); if (vol) vol.onclick = () => { contaEtapa = null; render(true); };
+    const syn = $("#ct-sync"); if (syn) syn.onclick = async () => { syn.disabled = true; try { await CONTA.sincronizar(); toast("Acessos atualizados ✦"); render(true); } catch (e) { syn.disabled = false; falha("sincronização", e); } };
+    const sai = $("#ct-sair"); if (sai) sai.onclick = () => { if (confirm("Sair da conta neste aparelho? Seu diário continua salvo aqui.")) { CONTA.sair(); render(true); } };
+  }
+
   /* ---------- telas ---------- */
   function telaAcesso() {
     return `<section class="pagina onb"><div class="logo">✦</div><h1 class="center">Bem-vinda</h1><p class="sub center">Digite o código de acesso que você recebeu após a compra.</p>
-      <div class="card"><div class="campo"><label>Código de acesso</label><input id="codigo" autocomplete="off" placeholder="SEU-CÓDIGO"></div><button class="btn primario" id="entrar">Entrar</button></div></section>`;
+      <div class="card"><div class="campo"><label>Código de acesso</label><input id="codigo" autocomplete="off" placeholder="SEU-CÓDIGO"></div><button class="btn primario" id="entrar">Entrar</button></div>
+      ${window.CONTA ? `<div class="card neon"><span class="brilho v"></span>${contaHTML()}</div>` : ""}</section>`;
   }
   function ligarAcesso() {
+    ligarConta();
     $("#entrar").onclick = () => {
       const v = ($("#codigo").value || "").trim().toUpperCase();
-      if (v === CONFIG.codigoAcesso.toUpperCase()) { S.acesso = true; salvar(); render(); } else toast("Código não reconhecido. Confira o e-mail de compra.");
+      if (v === CONFIG.codigoAcesso.toUpperCase()) { S.acesso = true; S.acessoPor = "codigo"; salvar(); render(); } else toast("Código não reconhecido. Confira o e-mail de compra.");
     };
   }
 
@@ -714,6 +750,7 @@
         <div class="campo"><label>Tratamento</label><select id="p-genero"><option value="f" ${S.genero !== "m" ? "selected" : ""}>Feminino</option><option value="m" ${S.genero === "m" ? "selected" : ""}>Masculino</option></select></div></div>
         <button class="btn primario" id="p-salvar">Salvar alterações</button>
       </div>
+      ${window.CONTA ? `<div class="card neon"><span class="brilho v"></span>${contaHTML()}</div>` : ""}
       <div class="card">
         <div class="mini" style="margin-bottom:10px">Lembrete da noite</div>
         <p class="sub" style="margin-bottom:10px">Adicione ao calendário do celular um lembrete diário às 21h para abrir sua carta e sua estrela.</p>
@@ -774,6 +811,8 @@
       S.pessoas = [{ nome, nascimento: nasc || "", relacao: rel }].concat(S.pessoas || []).slice(0, 12); salvar(); render(true); toast("Sintonia calculada ✦");
     };
     app.querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { S.pessoas.splice(Number(b.dataset.rm), 1); salvar(); render(true); });
+
+    ligarConta();
 
     // perfil
     const ps = $("#p-salvar"); if (ps) ps.onclick = () => {
@@ -859,6 +898,14 @@
   };
 
   /* ---------- início ---------- */
-  carregar(); ceu(); render();
+  carregar(); ceu();
+  if (window.CONTA) {
+    CONTA.ler();
+    const volta = CONTA.lerRetornoDoLink();          // voltou do link do e-mail
+    if (volta && volta.erro) setTimeout(() => toast("O link venceu ou já foi usado. Peça um novo e-mail."), 400);
+    if (CONTA.logada()) CONTA.sincronizar().then(ok => { if (ok) { if (volta && volta.ok) toast(S.acesso ? "Você entrou ✦" : "Entrou, mas não achei compra neste e-mail."); render(true); } })
+      .catch(e => console.warn("[conta] sincronização inicial falhou (segue com o que está salvo):", e.message));
+  }
+  render();
   setInterval(() => { if (rota.aba === "ceu" && !rota.sub) render(); }, 60000);
 })();
