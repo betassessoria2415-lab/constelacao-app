@@ -1,0 +1,6 @@
+{
+  "name": "o-segredo-das-estrelas",
+  "private": true,
+  "description": "App estático, sem dependências. O único script é o de testes.",
+  "scripts": { "test": "node --test tests/*.test.js" }
+}
