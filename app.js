@@ -12,6 +12,7 @@
     segredoClube: "0f8b129d30d699e4f46a5751271b175facec",  // gera o código mensal do Clube (veja dono/gerador-de-codigos.html)
     checkouts: { guia: "https://pay.kiwify.com.br/o8GJp7z", profundo: "https://pay.kiwify.com.br/o8GJp7z", lua: "https://pay.kiwify.com.br/o8GJp7z", amor: "https://pay.kiwify.com.br/o8GJp7z", clube: "https://pay.kiwify.com.br/o8GJp7z" },               // links de compra por portal: { profundo: "https://...", ano: "...", lua: "...", amor: "...", nome: "...", clube: "..." }
     hashes: {},                  // hashes SHA-256 dos códigos por portal: { profundo: ["..."], ... }
+    avulsos: { seteNoites: { ativo: false, nome: "Sete Noites de Prosperidade", preco: "", chamada: "", checkout: "" } },   // espaço reservado: só aparece no Clube quando o áudio e a cobrança existirem
     codigoMestreHash: "2faf1d7247a922a61ebdf0e5825eaf302abd1fc9f47af2504e5cdb17fffa62f7"         // opcional: hash de um código que abre qualquer portal (para suporte)
   };
 
@@ -29,15 +30,36 @@
   function toast(msg) { toastEl.textContent = msg; toastEl.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => toastEl.classList.remove("on"), 2600); }
 
   /* ---------- estado ---------- */
-  const padrao = () => ({ perfil: null, tour: false, dicas: {}, estrelas: {}, dias: {}, presencas: {}, sinais: [], melhorSeq: 0, luas: {}, pessoas: [], mesVisto: "", portais: {}, direitos: {}, direitosEm: 0, contaEmail: "", acessoPor: "", foco: "", genero: "f", nascHora: "", nascCidade: "", encerramento: {}, passos: {}, acesso: false, criadoEm: new Date().toISOString() });
-  let S = padrao();
+  // o formato dos dados, a migração e as regras ficam em nucleo.js (testado em tests/)
+  const N = window.NUCLEO, CHAVE_ANTERIOR = CONFIG.chave + "_anterior", CHAVE_ILEGIVEL = CONFIG.chave + "_ilegivel";
+  const padrao = () => N.padrao();
+  let S = padrao(), gravacaoFalhou = false;
   function carregar() {
-    try { const raw = localStorage.getItem(CONFIG.chave); if (raw) S = Object.assign(padrao(), JSON.parse(raw)); }
-    catch (e) { console.warn("[storage] leitura falhou:", e); toast("Não consegui ler seus dados salvos neste navegador."); }
+    let raw = null;
+    try { raw = localStorage.getItem(CONFIG.chave); }
+    catch (e) { console.warn(new Date().toISOString(), "[storage] leitura falhou:", e); toast("Não consegui ler seus dados salvos neste navegador."); return; }
+    if (!raw) return;
+    try { S = N.migrar(JSON.parse(raw)); }
+    catch (e) {
+      // dado ilegível: guarda uma cópia antes que qualquer gravação nova passe por cima
+      console.warn(new Date().toISOString(), "[storage] dados ilegíveis:", e);
+      try { localStorage.setItem(CHAVE_ILEGIVEL, raw); } catch (e2) { console.warn(new Date().toISOString(), "[storage] não guardei a cópia ilegível:", e2); }
+      toast("Não consegui ler seus dados salvos. Guardei uma cópia deles neste aparelho.");
+    }
   }
+  // devolve true se gravou; se falhar, um aviso fica na tela até a próxima gravação boa
   function salvar() {
-    try { localStorage.setItem(CONFIG.chave, JSON.stringify(S)); }
-    catch (e) { console.warn("[storage] gravação falhou:", e); toast("Não consegui salvar. Verifique o espaço do navegador."); }
+    try { localStorage.setItem(CONFIG.chave, JSON.stringify(S)); if (gravacaoFalhou) { gravacaoFalhou = false; avisoGravacao(); } return true; }
+    catch (e) { console.warn(new Date().toISOString(), "[storage] gravação falhou:", e); gravacaoFalhou = true; avisoGravacao(); return false; }
+  }
+  function avisoGravacao() {
+    let el = document.getElementById("aviso-gravacao");
+    if (!gravacaoFalhou) { if (el) el.remove(); return; }
+    if (el) return;
+    el = document.createElement("div"); el.id = "aviso-gravacao"; el.className = "aviso-fixo"; el.setAttribute("role", "alert");
+    el.innerHTML = `<b>Não consegui salvar neste aparelho.</b> O que você escrever agora pode se perder. Libere espaço no navegador ou saia do modo anônimo. <button type="button">Tentar de novo</button>`;
+    el.querySelector("button").onclick = () => { if (salvar()) toast("Salvo ✦"); };
+    document.body.appendChild(el);
   }
 
   /* ---------- cálculo do mapa ---------- */
@@ -71,14 +93,20 @@
   }
 
   /* ---------- navegação ---------- */
-  let rota = { aba: "hoje", sub: null };
+  let rota = { aba: "hoje", sub: null, de: "" };
+  const posicao = {};   // onde a pessoa estava na tela principal de cada aba, para voltar ao mesmo ponto
   function ir(aba, sub = null, voltar = false) {
     const atual = $(".pagina");
-    const troca = () => { if (aba !== rota.aba) delete secSel[aba]; rota = { aba, sub }; render(); window.scrollTo({ top: 0, behavior: "instant" }); };
+    const troca = () => {
+      if (!rota.sub) posicao[rota.aba] = window.scrollY;
+      rota = { aba, sub, de: rota.aba }; render();
+      window.scrollTo({ top: voltar && !sub && posicao[aba] ? posicao[aba] : 0, behavior: "instant" });
+      if (aba === "guia" && !sub && window.GUIA_APP) GUIA_APP.situar();
+    };
     if (atual && !voltar) { atual.classList.add("saindo"); setTimeout(troca, 180); } else troca();
   }
   tabs.addEventListener("click", e => { const b = e.target.closest(".tab"); if (b) ir(b.dataset.aba); });
-  function marcarTab() { tabs.querySelectorAll(".tab").forEach(b => b.classList.toggle("ativo", b.dataset.aba === rota.aba)); }
+  function marcarTab() { tabs.querySelectorAll(".tab").forEach(b => { const on = b.dataset.aba === rota.aba; b.classList.toggle("ativo", on); if (on) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); }); }
 
   /* ---------- sequência, presença e memória ---------- */
   const diaMenos = n => { const d = new Date(); d.setDate(d.getDate() - n); return d; };
@@ -91,7 +119,9 @@
     }
     return n;
   }
-  const MARCOS = { 3: "3 noites seguidas. O hábito começou a nascer.", 7: "7 noites seguidas. Uma semana inteira de presença.", 14: "14 noites. Você já é constante.", 21: "21 noites. Isso já faz parte de você.", 30: "30 noites seguidas. Um mês inteiro de presença." };
+  // presença = dia em que a pessoa fez alguma coisa (carta, prática, check-in, sinal ou fechamento); abrir o app não conta
+  const MARCOS = { 3: "3 dias de presença. O hábito começou a nascer.", 7: "7 dias de presença. Uma semana inteira com você.", 14: "14 dias de presença. Você já é constante.", 21: "21 dias de presença. Isso já faz parte de você.", 30: "30 dias de presença. Um mês inteiro." };
+  function abertura() { const k = hojeKey(); if ((S.dias[k] || {}).aberto) return; S.dias[k] = Object.assign(S.dias[k] || {}, { aberto: true }); salvar(); }
   function presenca() {
     const k = hojeKey(); if (S.presencas[k]) return;
     S.presencas[k] = true; const seq = sequencia(); S.melhorSeq = Math.max(S.melhorSeq || 0, seq); salvar();
@@ -132,10 +162,19 @@
     if (CONFIG.codigoAcesso && !S.acesso) { tabs.classList.add("oculto"); app.innerHTML = telaAcesso(); ligarAcesso(); return; }
     if (!S.perfil) { tabs.classList.add("oculto"); app.innerHTML = telaOnboarding(); ligarOnboarding(); return; }
     const M = mapa(S.perfil);
-    if (!S.tour) { tabs.classList.add("oculto"); app.innerHTML = ESTELA.tour(M); if (S.genero === "m") masculinizar(app); ESTELA.ligarTour(); return; }
+    const EXT = window.CDA_EXT || { telas: {}, eventos: [] }, chaveExt = rota.aba + "/" + (typeof rota.sub === "string" ? rota.sub : "");
+    abertura();
+    // apresentação completa: só quando a pessoa pede, no Perfil ou no cartão de Hoje
+    if (ESTELA.revendo()) { tabs.classList.add("oculto"); app.innerHTML = ESTELA.tour(M); if (S.genero === "m") masculinizar(app); ESTELA.ligarTour(); return; }
+    // primeira vez: a Estela se apresenta em uma tela e leva direto ao primeiro ritual
+    if (!S.tour) {
+      tabs.classList.add("oculto");
+      if (chaveExt === "guia/ritual") { app.innerHTML = EXT.telas[chaveExt](M); if (S.genero === "m") masculinizar(app); ligarEventos(M); }
+      else { app.innerHTML = ESTELA.encontro(M); if (S.genero === "m") masculinizar(app); ESTELA.ligarEncontro(); }
+      return;
+    }
     tabs.classList.remove("oculto"); marcarTab();
     let html = "";
-    const EXT = window.CDA_EXT || { telas: {}, eventos: [] }, chaveExt = rota.aba + "/" + (typeof rota.sub === "string" ? rota.sub : "");
     if (EXT.telas[chaveExt]) html = EXT.telas[chaveExt](M);
     else if (rota.aba === "hoje") html = rota.sub === "provas" ? telaProvas() : rota.sub === "mes" ? telaMes(M) : telaHoje(M);
     else if (rota.aba === "mapa") html = rota.sub === "compat" ? telaCompat(M) : telaMapa(M);
@@ -168,10 +207,12 @@
   const voltar = (aba, sub = null) => `<button class="voltar" data-ir="${aba}" ${sub ? `data-sub='${JSON.stringify(sub)}'` : ""}>‹ Voltar</button>`;
   const chips = (arr, cls = "") => arr.map(x => `<span class="chip ${cls}">${esc(x)}</span>`).join(" ");
   // capítulos de uma aba: [[id, rótulo], ...]; devolve o capítulo aberto e a barra de botões
+  // o capítulo escolhido fica guardado por aba: abrir uma prática e voltar mantém o capítulo
   const secSel = {}; let secMudou = false;
   function secoes(aba, lista) {
     const at = secSel[aba] === "tudo" ? "tudo" : lista.some(x => x[0] === secSel[aba]) ? secSel[aba] : lista[0][0];
-    return { at, html: `<div class="secoes" role="tablist">${lista.map(x => `<button class="secao ${x[0] === at ? "on" : ""}" data-sec="${aba}:${x[0]}" role="tab" aria-selected="${x[0] === at}">${esc(x[1])}</button>`).join("")}</div>` };
+    return { at, painel: `role="tabpanel" id="painel-${aba}" aria-labelledby="cap-${aba}-${at}"`,
+      html: `<div class="caps" role="tablist" aria-label="Capítulos">${lista.map(x => `<button class="cap ${x[0] === at ? "on" : ""}" id="cap-${aba}-${x[0]}" data-sec="${aba}:${x[0]}" role="tab" aria-selected="${x[0] === at}" aria-controls="painel-${aba}" tabindex="${x[0] === at ? 0 : -1}">${esc(x[1])}</button>`).join("")}</div>` };
   }
   const barra = pct => `<div class="barra"><div style="width:${pct}%"></div></div>`;
 
@@ -181,12 +222,42 @@
   /* ---------- conta: login por e-mail e direitos comprados ---------- */
   let contaEtapa = null;   // { email } depois que o e-mail de acesso foi pedido
   const NOME_PORTAL = { base: "Acesso ao app", profundo: "Mapa Profundo", ano: "Previsão 2027", lua: "Lua e Ascendente", amor: "Amor e Vínculos", nome: "Nome de Poder", clube: "Clube das Estrelas", guia: "Trajetória completa" };
+  /* pagamento em confirmação: o servidor só registra a compra aprovada, então o "pendente" é um estado
+     deste aparelho, criado ao abrir o checkout e desfeito quando o direito chega (ou depois de 3 dias) */
+  const PRAZO_PAGAMENTO = 3 * 86400000;
+  function pagamentoPendente() {
+    const p = S.pagamento; if (!p || !p.em) return null;
+    if (Date.now() - p.em > PRAZO_PAGAMENTO || (window.PREMIUM && PREMIUM.liberado(p.portal) && !(p.portal === "clube" && PREMIUM.degustando()))) { S.pagamento = null; salvar(); return null; }
+    return p;
+  }
+  function pagamentoHTML() {
+    const p = pagamentoPendente(); if (!p) return "";
+    const logada = window.CONTA && CONTA.logada();
+    return `<div class="card pendente" role="status"><div class="card-cab"><span class="mini">Pagamento em confirmação</span><span class="chip ouro">aguardando</span></div>
+      <p class="sub" style="margin:0 0 10px">Você abriu a compra ${esc(fmtCurta(hojeKey(new Date(p.em))).slice(0, 5))}. Cartão costuma confirmar em minutos; Pix e boleto podem levar mais. ${logada ? "Assim que a confirmação chegar, o acesso abre aqui." : "Entre com o e-mail usado na compra para o acesso abrir neste aparelho."}</p>
+      <div class="linha-btn">${logada ? `<button class="btn primario pequeno" id="pg-atualizar">Atualizar agora</button>` : `<button class="btn primario pequeno" data-ir="eu">Entrar com o e-mail</button>`}<button class="btn fantasma pequeno" id="pg-dispensar">Não comprei</button></div></div>`;
+  }
+  let ultimaSinc = 0;
+  // confere os direitos no servidor: ao voltar do checkout, ao reabrir o app e pelo botão Atualizar
+  async function sincronizarAcesso(manual) {
+    if (!window.CONTA || !CONTA.logada()) return false;
+    if (!manual && Date.now() - ultimaSinc < 20000) return false;
+    ultimaSinc = Date.now();
+    const antes = JSON.stringify(S.direitos || {}), tinha = !!S.pagamento;
+    try { await CONTA.sincronizar(); }
+    catch (e) { console.warn(new Date().toISOString(), "[conta] consulta de acessos falhou:", e.message); if (manual) toast("Não consegui consultar suas compras agora. Seu acesso continua como estava. Tente de novo em instantes."); return false; }
+    const mudou = antes !== JSON.stringify(S.direitos || {});
+    if (tinha && !pagamentoPendente()) toast("Pagamento confirmado. Acesso liberado ✦");
+    else if (manual) toast(mudou ? "Acessos atualizados ✦" : tinha ? "Ainda sem confirmação. Tente de novo em alguns minutos." : "Acessos conferidos ✦");
+    if (mudou || manual) render(true);
+    return true;
+  }
   function contaHTML() {
     if (!window.CONTA) return "";
     if (CONTA.logada()) {
-      const d = S.direitos || {}, itens = Object.keys(d).filter(k => CONTA.valido(d[k]));
+      const d = S.direitos || {}, itens = Object.keys(d).filter(k => CONTA.valido(d[k])), plano = N.planoDe(itens);
       return `<div class="mini" style="margin-bottom:8px">Minha conta</div>
-        <p style="margin:0 0 8px">Conectada como <b>${esc(CONTA.email())}</b></p>
+        <p style="margin:0 0 8px">Conectada como <b>${esc(CONTA.email())}</b>${plano ? ` · plano <b>${plano}</b>` : ""}</p>
         ${itens.length ? itens.map(k => `<span class="chip verde" style="margin:0 6px 6px 0">${esc(NOME_PORTAL[k] || k)}${d[k] === "vitalicio" ? "" : " até " + fmtCurta(d[k].slice(0, 10)).slice(0, 5)}</span>`).join("") : `<p class="sub" style="margin:0 0 8px">Nenhuma compra encontrada para este e-mail ainda. Se você acabou de pagar, toque em Atualizar em alguns minutos.</p>`}
         <div class="linha-btn" style="margin-top:10px"><button class="btn fantasma pequeno" id="ct-sync">Atualizar acessos</button><button class="btn fantasma pequeno" id="ct-sair">Sair</button></div>`;
     }
@@ -205,10 +276,19 @@
       try { await CONTA.pedirAcesso(em); contaEtapa = { email: em }; render(true); toast("E-mail enviado ✦ confira sua caixa de entrada"); } catch (e) { env.disabled = false; env.textContent = "Receber link"; falha("pedido de acesso", e); } };
       env.onclick = enviar; $("#ct-email").onkeydown = e => { if (e.key === "Enter") enviar(); }; }
     const ver = $("#ct-verificar"); if (ver) { const verificar = async () => { const cod = ($("#ct-cod").value || "").trim(); if (cod.length < 6) return toast("Digite o código do e-mail."); ver.disabled = true;
-      try { await CONTA.verificarCodigo(contaEtapa.email, cod); contaEtapa = null; await CONTA.sincronizar(); toast(S.acesso ? "Você entrou ✦" : "Entrou, mas não achei compra neste e-mail."); render(true); } catch (e) { ver.disabled = false; console.warn("[conta] código:", e); toast("Código inválido ou vencido. Peça um novo e-mail."); } };
+      // código recusado e falha de consulta são erros diferentes, com mensagens diferentes
+      try { await CONTA.verificarCodigo(contaEtapa.email, cod); }
+      catch (e) { ver.disabled = false; console.warn(new Date().toISOString(), "[conta] código:", e.status, e.message);
+        return toast(N.erroDeCodigo(e.status) ? "Código inválido ou vencido. Peça um novo e-mail." : /rate|limit|429/i.test(e.message || "") || e.status === 429 ? "Muitas tentativas. Espere alguns minutos e tente de novo." : "Não consegui conferir o código agora. Confira a internet e tente de novo: o código continua valendo."); }
+      contaEtapa = null;
+      try { await CONTA.sincronizar(); toast(S.acesso ? "Você entrou ✦" : "Entrou, mas não achei compra neste e-mail."); }
+      catch (e) { console.warn(new Date().toISOString(), "[conta] consulta depois do código:", e.message); toast("Você entrou, mas não consegui consultar suas compras agora. Toque em Atualizar acessos."); }
+      render(true); };
       ver.onclick = verificar; $("#ct-cod").onkeydown = e => { if (e.key === "Enter") verificar(); }; }
     const vol = $("#ct-voltar"); if (vol) vol.onclick = () => { contaEtapa = null; render(true); };
-    const syn = $("#ct-sync"); if (syn) syn.onclick = async () => { syn.disabled = true; try { await CONTA.sincronizar(); toast("Acessos atualizados ✦"); render(true); } catch (e) { syn.disabled = false; falha("sincronização", e); } };
+    const syn = $("#ct-sync"); if (syn) syn.onclick = async () => { syn.disabled = true; await sincronizarAcesso(true); if (syn.isConnected) syn.disabled = false; };
+    const pa = $("#pg-atualizar"); if (pa) pa.onclick = async () => { pa.disabled = true; pa.textContent = "Conferindo…"; await sincronizarAcesso(true); if (pa.isConnected) { pa.disabled = false; pa.textContent = "Atualizar agora"; } };
+    const pd = $("#pg-dispensar"); if (pd) pd.onclick = () => { S.pagamento = null; salvar(); render(true); };
     const sai = $("#ct-sair"); if (sai) sai.onclick = () => { if (confirm("Sair da conta neste aparelho? Seu diário continua salvo aqui.")) { CONTA.sair(); render(true); } };
   }
 
@@ -230,7 +310,7 @@
     return `<section class="pagina onb">
       <div class="logo">✦</div>
       <h1 class="center">Seu céu tem um desenho só seu.</h1>
-      <p class="sub center" style="margin:10px 0 22px">Pelo seu nome e sua data de nascimento, o app revela seu número de destino, sua Sefirá na Árvore da Vida e guia você, um dia de cada vez, do desejo à manifestação.</p>
+      <p class="sub center" style="margin:10px 0 22px">Pelo seu nome e sua data de nascimento, o app revela seu número de destino e sua Sefirá na Árvore da Vida, e acende com você um caminho de sete estrelas, uma prática por dia.</p>
       <div class="card neon"><span class="brilho v"></span>
         <div class="campo"><label>Nome completo (como na certidão)</label><input id="nome" autocomplete="name" placeholder="Maria Aparecida da Silva"></div>
         <div class="campo"><label>Data de nascimento</label><input id="nasc" type="date" min="1920-01-01" max="2020-12-31"></div>
@@ -254,7 +334,7 @@
     };
   }
   function telaCalculando(fim) {
-    const passos = ["Lendo as letras do seu nome…", "Somando as vibrações…", "Localizando sua Sefirá na Árvore da Vida…", "Consultando a fase da Lua…", "Abrindo a sua trajetória…"];
+    const passos = ["Lendo as letras do seu nome…", "Somando as vibrações…", "Localizando sua Sefirá na Árvore da Vida…", "Consultando a fase da Lua…", "Acendendo o seu caminho…"];
     app.innerHTML = `<section class="pagina calc"><div class="orb"></div><h2>Desenhando seu céu</h2><p class="passo" id="passo"></p></section>`;
     let i = 0; const el = $("#passo");
     const t = setInterval(() => { el.textContent = passos[i]; el.style.animation = "none"; void el.offsetWidth; el.style.animation = ""; i++; if (i > passos.length) { clearInterval(t); fim(); } }, 650);
@@ -271,13 +351,17 @@
     const O = M.orient, K = M.carta, seq = sequencia(), lemb = lembranca(), nProvas = provas().length;
     const semana = [6, 5, 4, 3, 2, 1, 0].map(i => { const dt = diaMenos(i); return `<div class="dia-ponto ${S.presencas[hojeKey(dt)] ? "on" : ""} ${i === 0 ? "hoje" : ""}"><i></i>${"DSTQQSS"[dt.getDay()]}</div>`; }).join("");
     return `<section class="pagina">
-      ${topo(fmtData(d), `<span class="chip ouro seq" id="seq">✦ ${seq} ${seq === 1 ? "noite" : "noites"}</span>`)}
+      ${topo(fmtData(d), `<span class="chip ouro seq" id="seq" title="Dias seguidos em que você fez alguma coisa aqui. Uma falta não zera.">✦ ${seq} ${seq === 1 ? "dia" : "dias"}</span>`)}
       <h1>${saudacao()}, ${esc(primeiroNome())}.</h1>
       ${ESTELA.falaHoje({ carta: !!dia.carta, nivel, noite: !!dia.noite, momento: mo })}
-      <div class="semana">${semana}</div>
-      <div class="momentos" role="tablist">${[["receber", "Receber", "carta e orientação", !!dia.carta], ["praticar", "Praticar", "técnica e energia", GH.feita && nivel > 0], ["fechar", "Fechar o dia", "frequência e sinais", !!dia.noite]].map((x, i) => `<button class="momento ${mo === x[0] ? "on" : ""} ${x[3] ? "ok" : ""}" data-momento="${x[0]}" role="tab" aria-selected="${mo === x[0]}"><i>${x[3] ? "✓" : i + 1}</i><b>${x[1]}</b><small>${x[2]}</small></button>`).join("")}</div>
+      ${pagamentoHTML()}
+      ${S.apresentacao === "oferecer" ? `<div class="card oferta-estela"><div class="card-cab"><span class="mini">Novidade</span><span class="chip violeta">opcional</span></div>
+        <p style="margin:0 0 10px">O app ganhou o Caminho nas Estrelas e uma guia, a Estela. Quer que ela mostre como funciona? Leva um minuto, e tudo o que você já escreveu continua aqui.</p>
+        <div class="linha-btn"><button class="btn neon pequeno" id="ap-ver">Conhecer a Estela</button><button class="btn fantasma pequeno" id="ap-nao">Agora não</button></div></div>` : ""}
+      ${GUIA_APP.cartaEstado().tipo === "pronta" ? GUIA_APP.cartaCard() : ""}
+      <div class="momentos" role="tablist" aria-label="Momentos do dia">${[["receber", "Receber", !!dia.carta], ["praticar", "Praticar", GH.feita && nivel > 0], ["fechar", "Fechar", !!dia.noite]].map((x, i) => `<button class="momento ${mo === x[0] ? "on" : ""} ${x[2] ? "ok" : ""}" id="mom-${x[0]}" data-momento="${x[0]}" role="tab" aria-selected="${mo === x[0]}" aria-controls="painel-hoje" tabindex="${mo === x[0] ? 0 : -1}"><i aria-hidden="true">${x[2] ? "✓" : i + 1}</i><b>${x[1]}</b><span class="so-leitor">${x[2] ? ", feito" : ", a fazer"}</span></button>`).join("")}</div>
 
-      <div class="sec-corpo">${mo === "receber" ? `
+      <div class="sec-corpo" role="tabpanel" id="painel-hoje" aria-labelledby="mom-${mo}">${mo === "receber" ? `
       <div class="carta ${dia.carta ? "virada" : ""}" id="carta" role="button" tabindex="0" aria-label="Carta do dia">
         <div class="carta-in">
           <div class="face frente"><div class="selo">✦</div><h3>Sua carta de hoje</h3><p class="sub" style="margin:6px 0 0">Respire fundo, pense no seu dia e toque para revelar.</p><span class="chip violeta" style="margin-top:14px">uma carta por dia</span></div>
@@ -296,9 +380,10 @@
         <div class="card-cab"><span class="mini">Seu dia pessoal</span><span class="chip ouro">Dia universal ${M.diaUniversal}</span></div>
         <div class="num-hero"><div class="num-grande">${M.diaPessoal}</div><div><h2>${esc(c.palavra)}</h2><p class="sub" style="margin:4px 0 0">${esc(c.resumo)}</p></div></div>
         <div class="sep"></div>
-        <p>${esc(c.dia)}</p>
-        ${(() => { const ar = [["dinheiro", "◈", "Dinheiro"], ["amor", "♡", "Amor e relações"], ["energia", "ϟ", "Energia"]], pri = { amor: "amor", paz: "energia" }[S.foco] || "dinheiro";
-          return ar.sort((x, y) => (y[0] === pri) - (x[0] === pri)).map(x => `<div class="area"><div class="ic">${x[1]}</div><div><div class="mini">${x[2]}${x[0] === pri ? " · seu foco" : ""}</div><p>${esc(O[x[0]])}</p></div></div>`).join(""); })()}
+        ${(() => { const pri = DIARIO.areaDoFoco(S.foco), x = DIARIO.AREAS.find(a => a[0] === pri); return `<div class="area"><div class="ic">${x[1]}</div><div><div class="mini">${x[2]} · seu foco</div><p>${esc(O[pri])}</p></div></div>`; })()}
+        <details class="mais completa"><summary>Ver orientação completa</summary>
+        <p style="margin-top:12px">${esc(c.dia)}</p>
+        ${(() => { const pri = DIARIO.areaDoFoco(S.foco); return DIARIO.AREAS.filter(x => x[0] !== pri).map(x => `<div class="area"><div class="ic">${x[1]}</div><div><div class="mini">${x[2]}</div><p>${esc(O[x[0]])}</p></div></div>`).join(""); })()}
         <div class="sep"></div>
         <p class="sub" style="margin-bottom:6px">${O.semana.simbolo} ${esc(O.semana.frase)}</p>
         <p class="citacao" style="margin:10px 0">${esc(O.toque)}</p>
@@ -309,8 +394,13 @@
         <div class="mini" style="margin:14px 0 6px">Favorece</div>${chips(c.fazer, "verde")}
         <div class="mini" style="margin:12px 0 6px">Evite</div>${chips(c.evitar)}
         <div class="sep"></div>
-        <div style="display:flex;align-items:center;gap:10px"><i style="width:18px;height:18px;border-radius:50%;background:${c.cor};box-shadow:0 0 12px ${c.cor}"></i><span class="sub">Cor do dia para vestir ou ter por perto</span></div>
+        <div style="display:flex;align-items:center;gap:10px"><i style="width:18px;height:18px;border-radius:50%;background:${c.cor}"></i><span class="sub">Cor do dia para vestir ou ter por perto</span></div>
+        <div class="sep"></div>
+        <div class="mini" style="margin-bottom:6px">Nome sagrado do dia · ${M.nome72.n} de 72</div>
+        <div style="display:flex;gap:16px;align-items:center"><div class="hebraica" style="font-size:36px" dir="rtl">${M.nome72.letras}</div><div><b>${esc(M.nome72.intencao)}</b><p class="sub" style="margin:2px 0 0">Olhe para as letras por 30 segundos, da direita para a esquerda, respirando devagar. Na tradição, é um exercício de contemplação.</p></div></div>
+        </details>
       </div>
+      <button class="btn fantasma" data-momento="praticar" style="margin-bottom:14px">Seguir para a prática de hoje ›</button>
       ${(() => {
         const sem = diasPessoais(M, d, 7), fut = sem.slice(1), am = sem[1];
         const bd = melhor(fut, "dinheiro"), ba = melhor(fut, "amor"), bp = melhor(fut, "pausa");
@@ -324,27 +414,22 @@
             <li><span class="ic">♡</span><span><b>Melhor dia para amor:</b> ${diaExt(ba)} · dia ${ba.dp}, ${esc(NUM.CICLO[ba.dp].palavra)}</span></li>
             <li><span class="ic">☾</span><span><b>Dia de pausa:</b> ${diaExt(bp)} · dia ${bp.dp}, ${esc(NUM.CICLO[bp.dp].palavra)}</span></li>
           </ul>
-          <div class="amanha"><div class="mini">Amanhã · dia pessoal ${am.dp} · ${esc(NUM.CICLO[am.dp].palavra)}</div>${clube() ? `<p>${esc(oa.dinheiro)}</p><span class="chip verde">Clube · amanhã liberado</span>` : `<p class="borrado">${esc(oa.dinheiro)}</p><span class="chip violeta tranca" data-portal="clube" role="button" tabindex="0">☾ abre à meia-noite · ver agora com o Clube</span>`}</div>
+          <div class="amanha"><div class="mini">Amanhã · dia pessoal ${am.dp} · ${esc(NUM.CICLO[am.dp].palavra)}</div>${clube() ? `<p>${esc(oa[DIARIO.areaDoFoco(S.foco)])}</p><span class="chip verde">Clube · amanhã liberado</span>` : `<p class="borrado">${esc(oa[DIARIO.areaDoFoco(S.foco)])}</p><span class="chip violeta tranca" data-portal="clube" role="button" tabindex="0">☾ abre à meia-noite · ver agora com o Clube</span>`}</div>
           <button class="btn ${mesNovo ? "primario" : "fantasma"} pequeno" data-ir="hoje" data-sub='"mes"' style="width:100%;margin-top:12px">${mesNovo ? "✦ Sua previsão de " + MESES[d.getMonth()] + " chegou" : "Previsão de " + MESES[d.getMonth()] + " ›"}</button>
         </div>`;
       })()}
       ${d.getMonth() >= 9 ? `<div class="card clique ouro-b" data-ir="ceu" data-sub='"ano"'><div class="card-cab"><span class="mini">Reta final do ano</span><span class="chip ouro">ano pessoal ${M.anoPessoalProx}</span></div><h3>Sua Previsão ${d.getFullYear() + 1} está pronta</h3><p class="sub" style="margin:6px 0 0">${esc(NUM.CICLO[M.anoPessoalProx].tema)}: veja o que o próximo ano pede de você ›</p></div>` : ""}
-      <div class="card clique" data-ir="ceu">
+      <div class="card clique" data-ir="ceu" role="button" tabindex="0">
         <div class="card-cab"><span class="mini">Lua agora</span><span class="chip">${M.lua.iluminacao}% iluminada</span></div>
         <div style="display:flex;gap:14px;align-items:center"><div class="lua-ic">${M.lua.icone}</div><div><h3>${esc(M.lua.nome)}</h3><p class="sub" style="margin:2px 0 0">${esc(M.lua.intencao)}</p></div></div>
       </div>
-      <div class="card">
-        <div class="card-cab"><span class="mini">Nome sagrado do dia</span><span class="chip violeta">${M.nome72.n} de 72</span></div>
-        <div style="display:flex;gap:16px;align-items:center"><div class="hebraica" style="font-size:40px" dir="rtl">${M.nome72.letras}</div><div><h3>${esc(M.nome72.intencao)}</h3><p class="sub" style="margin:2px 0 0">Olhe para as letras por 30 segundos, da direita para a esquerda, respirando devagar. Não precisa pronunciar: a tradição diz que a forma já comunica.</p></div></div>
-      </div>
-      <button class="btn fantasma" data-momento="praticar" style="margin-bottom:14px">Seguir para a prática de hoje ›</button>
       ` : mo === "praticar" ? `
       ${GUIA_APP.cardHoje()}
       <div class="card">
         <div class="card-cab"><span class="mini">Check-in de energia</span>${nivel ? `<span class="chip violeta">nível ${nivel} de 22</span>` : ""}</div>
-        <p class="sub" style="margin-bottom:10px">Como você está se sentindo agora? Na lei da atração, o sentimento mostra a frequência que você emite.</p>
+        <p class="sub" style="margin-bottom:10px"><label for="nivel">Como você está se sentindo agora?</label> Energia, aqui, é a sua própria percepção de como está. Dar nome a ela já ajuda a cuidar.</p>
         <select id="nivel"><option value="0">Escolher…</option>${KABALA.ESCALA.map(e => `<option value="${e.nivel}" ${e.nivel === nivel ? "selected" : ""}>${e.nivel}. ${esc(e.nome)}</option>`).join("")}</select>
-        ${faixa ? `<p style="margin-top:12px">${esc(KABALA.SUBIDA[faixa])}</p>${faixa !== "alto" ? `<button class="btn neon pequeno" data-ir="guia" data-sub='"resgate"' style="width:100%">Fazer um resgate de frequência agora ›</button>` : ""}` : ""}
+        ${faixa ? `<p style="margin-top:12px">${esc(KABALA.SUBIDA[faixa])}</p>${faixa !== "alto" ? `<button class="btn neon pequeno" data-ir="guia" data-sub='"resgate"' style="width:100%">Abrir o resgate de energia ›</button>` : ""}` : ""}
       </div>
       <div class="card">
         <div class="mini" style="margin-bottom:8px">Intenção de hoje · método WOOP</div>
@@ -390,7 +475,7 @@
       <h1 style="margin:8px 0">O que já está acontecendo</h1>
       <p class="sub">Nos dias de dúvida, volte aqui. Tudo isto foi você quem viveu e registrou.</p>
       <div class="grade2" style="margin:14px 0">
-        <div class="card" style="margin:0"><div class="mini">Sequência atual</div><div class="num-medio">${seq}</div><div class="sub" style="font-size:13px">${seq === 1 ? "noite" : "noites"} seguidas</div></div>
+        <div class="card" style="margin:0"><div class="mini">Sequência atual</div><div class="num-medio">${seq}</div><div class="sub" style="font-size:13px">${seq === 1 ? "dia" : "dias"} de presença · uma falta não zera</div></div>
         <div class="card" style="margin:0"><div class="mini">Melhor sequência</div><div class="num-medio">${Math.max(S.melhorSeq || 0, seq)}</div><div class="sub" style="font-size:13px">seu recorde</div></div>
       </div>
       <div class="card">${itens.length ? itens.map(i => `<div class="evento"><div class="d" style="font-size:20px">${rot[i.tipo][0]}<small>${fmtCurta(i.data).slice(0, 5)}</small></div><div><div class="mini">${rot[i.tipo][1]}</div><div>${esc(i.texto)}</div></div></div>`).join("") : `<p class="sub" style="margin:0">Ainda vazio. Registre o primeiro sinal na tela Hoje. Cada desejo que você confirmar também aparece aqui.</p>`}</div>
@@ -408,7 +493,7 @@
     const mpProx = NUM.mesPessoal(M.d, M.m, prox.getFullYear(), prox.getMonth() + 1);
     const vazios = new Date(ano, mes, 1).getDay();
     return `<section class="pagina">
-      <header class="topo">${voltar("hoje")}<span class="chip ouro">mês pessoal ${mp}</span></header>
+      <header class="topo">${voltar(rota.de === "ceu" ? "ceu" : "hoje")}<span class="chip ouro">mês pessoal ${mp}</span></header>
       <div class="mini">Previsão de ${MESES[mes]} de ${ano}</div>
       <h1 style="margin:8px 0">Seu mês é de ${esc(info.palavra.toLowerCase())}.</h1>
       <div class="card neon"><span class="brilho v"></span>
@@ -422,7 +507,7 @@
         ${ouro.map(x => `<div class="evento"><div class="d">${x.dt.getDate()}<small>${DIAS_C[x.dt.getDay()]}</small></div><div><b>Dia pessoal ${x.dp} · ${esc(NUM.CICLO[x.dp].palavra)}</b><div class="sub" style="font-size:13.5px">${esc(NUM.CICLO[x.dp].fazer.join(" · "))}</div></div></div>`).join("")}
       </div>
       <div class="card">
-        <div class="card-cab"><span class="mini">Dias de afeto e portais da Lua</span></div>
+        <div class="card-cab"><span class="mini">Dias de afeto e luas do mês</span></div>
         ${amor.map(x => `<div class="evento"><div class="d">${x.dt.getDate()}<small>${DIAS_C[x.dt.getDay()]}</small></div><div><b>♡ Dia pessoal ${x.dp} · ${esc(NUM.CICLO[x.dp].palavra)}</b><div class="sub" style="font-size:13.5px">Bom para conversas, encontros e reconciliações.</div></div></div>`).join("")}
         ${luas.map(l => `<div class="evento"><div class="d">${l.dt.getDate()}<small>${DIAS_C[l.dt.getDay()]}</small></div><div><b>${l.icone} ${l.tipo}</b><div class="sub" style="font-size:13.5px">${l.tipo === "Lua Nova" ? "Plante a intenção do novo ciclo." : "Colha, agradeça e celebre."}</div></div></div>`).join("")}
       </div>
@@ -498,12 +583,12 @@
 
   function telaMapa(M) {
     const sig = NUM.SIGNIFICADOS[M.destino], sef = KABALA.sefiraDe(M.destino), sefE = KABALA.sefiraDe(M.expressao);
-    const sc = secoes("mapa", [["essencia", "Essência"], ["nome", "Meu nome"], ["momento", "Meu momento"]]), tudo = sc.at === "tudo";
+    const sc = secoes("mapa", [["essencia", "Essência"], ["nome", "Meu nome"], ["relacoes", "Relações"]]), tudo = sc.at === "tudo";
     const bloco = (rot, n, desc) => { const s = NUM.SIGNIFICADOS[n]; return `<div class="card" style="margin:0"><div class="mini">${rot}</div><div style="display:flex;align-items:baseline;gap:10px;margin:6px 0 4px"><span class="num-medio">${n}</span><b>${esc(s.nome)}</b></div><p class="sub" style="margin:0;font-size:13.5px">${esc(desc)}</p></div>`; };
     return `<section class="pagina">
       ${topo("Seu mapa cabalístico")}
       ${sc.html}
-      ${sc.at === "essencia" || tudo ? `<div class="sec-corpo">
+      ${sc.at === "essencia" || tudo ? `<div class="sec-corpo" ${tudo ? "" : sc.painel}>
       <h1>${esc(S.perfil.nome.split(" ")[0])}, seu número de destino é</h1>
       <div class="card neon" style="margin-top:14px"><span class="brilho v"></span><span class="brilho o"></span>
         <div class="num-hero"><div class="anel"><div class="num-grande" style="font-size:64px;min-width:0">${M.destino}</div></div><div><h2>${esc(sig.nome)}</h2><p class="sub" style="margin:4px 0 8px">Sefirá <b>${esc(sef.nome)}</b> · ${esc(sef.pt)}</p><div class="hebraica">${esc(sig.hebraica)}</div></div></div>
@@ -521,12 +606,18 @@
         <div class="mini" style="margin:10px 0 6px">Sombra a observar</div>${chips(sig.sombra)}
       </div>
       <div class="card ouro-b"><div class="mini" style="margin-bottom:8px">Sua frequência pessoal</div><p class="freq">“${esc(sig.frequencia)}”</p></div>
+      <div class="card">
+        <div class="card-cab"><span class="mini">Seu signo solar</span><span class="chip">${M.signo.simbolo} ${esc(M.signo.elemento)}</span></div>
+        <h3>${esc(M.signo.nome)} <span class="sub" style="font-weight:400">· regido por ${esc(M.signo.regente)}</span></h3>
+        <p style="margin:8px 0">${esc(M.signo.prosp)}</p>${chips(M.signo.palavras, "violeta")}
+        <button class="btn fantasma pequeno" style="width:100%;margin-top:12px" data-ir="mapa" data-sub='"lua"'>Seu Sol é só um terço: ver Lua e Ascendente ›</button>
+      </div>
       ${(() => { const L = COMBOS.ler(M.destino, M.expressao, M.motivacao); return `<div class="card clique neon" data-ir="mapa" data-sub='"profundo"'><span class="brilho r"></span>
         <div class="card-cab"><span class="mini">Como seus números conversam</span><span class="chip violeta">${M.destino} · ${M.expressao} · ${M.motivacao}</span></div>
         <ul class="lista">${L.resumo.map(t => `<li><span class="ic">✦</span><span>${esc(t)}</span></li>`).join("")}</ul>
         <button class="btn primario pequeno" style="width:100%;margin-top:10px" data-ir="mapa" data-sub='"profundo"'>Abrir meu Mapa Profundo ›</button></div>`; })()}
       </div>` : ""}
-      ${sc.at === "nome" || tudo ? `<div class="sec-corpo">
+      ${sc.at === "nome" || tudo ? `<div class="sec-corpo" ${tudo ? "" : sc.painel}>
       <h1>O que o seu nome carrega</h1>
       <p class="sub">Cada letra tem um valor. Somadas, mostram quatro lados seus.</p>
       <div class="grade2" style="margin-bottom:14px">
@@ -551,30 +642,16 @@
       </div>
       ${M.carmicas.length ? `<div class="card"><div class="mini" style="margin-bottom:8px">Lições cármicas</div>${M.carmicas.map(c => `<p><b>${c.n}</b> ${esc(c.onde)}: ${esc(c.t)}</p>`).join("")}</div>` : ""}
       </div>` : ""}
-      ${sc.at === "momento" || tudo ? `<div class="sec-corpo">
-      <h1>O seu momento</h1>
-      <p class="sub">O signo, o ano que você está vivendo e quem caminha ao seu lado.</p>
-      <div class="card">
-        <div class="card-cab"><span class="mini">Seu signo solar</span><span class="chip">${M.signo.simbolo} ${esc(M.signo.elemento)}</span></div>
-        <h3>${esc(M.signo.nome)} <span class="sub" style="font-weight:400">· regido por ${esc(M.signo.regente)}</span></h3>
-        <p style="margin:8px 0">${esc(M.signo.prosp)}</p>${chips(M.signo.palavras, "violeta")}
-        <button class="btn fantasma pequeno" style="width:100%;margin-top:12px" data-ir="mapa" data-sub='"lua"'>Seu Sol é só um terço: ver Lua e Ascendente ›</button>
-      </div>
-      <div class="card">
-        <div class="card-cab"><span class="mini">Seus ciclos</span></div>
-        <div class="grade3">
-          <div><div class="mini">Ano pessoal ${M.anoRef}</div><div class="num-medio">${M.anoPessoal}</div><div class="sub" style="font-size:12.5px">${esc(NUM.CICLO[M.anoPessoal].tema)}</div></div>
-          <div><div class="mini">Mês pessoal</div><div class="num-medio">${M.mesPessoal}</div><div class="sub" style="font-size:12.5px">${esc(NUM.CICLO[M.mesPessoal].tema)}</div></div>
-          <div><div class="mini">Ano pessoal ${M.anoRef + 1}</div><div class="num-medio">${M.anoPessoalProx}</div><div class="sub" style="font-size:12.5px">${esc(NUM.CICLO[M.anoPessoalProx].tema)}</div></div>
-        </div>
-        <div class="sep"></div>
-        <p>${esc(NUM.CICLO[M.anoPessoal].ano)}</p>
-      </div>
-      <div class="card clique neon" data-ir="mapa" data-sub='"compat"'><span class="brilho r"></span>
+      ${sc.at === "relacoes" || tudo ? `<div class="sec-corpo" ${tudo ? "" : sc.painel}>
+      <h1>Quem caminha com você</h1>
+      <p class="sub">Compare o seu mapa com o de outra pessoa, ou com o nome do seu negócio.</p>
+      <div class="card clique neon" data-ir="mapa" data-sub='"compat"' role="button" tabindex="0">
         <div class="card-cab"><span class="mini">Compatibilidade</span><span class="chip violeta">${(S.pessoas || []).length} ${(S.pessoas || []).length === 1 ? "pessoa" : "pessoas"}</span></div>
-        <h3>Quem caminha com você</h3>
-        <p class="sub" style="margin:6px 0 0">Compare seu mapa com o do parceiro, dos filhos, de uma sócia ou do nome do seu negócio ›</p>
+        <h3>Calcular a sintonia</h3>
+        <p class="sub" style="margin:6px 0 0">Parceiro, filhos, uma sócia ou o nome do negócio. A primeira pessoa está incluída no seu acesso ›</p>
       </div>
+      ${(S.pessoas || []).slice(0, 3).map(p => `<div class="card clique" data-ir="mapa" data-sub='"compat"' role="button" tabindex="0"><div class="card-cab"><span class="mini">${esc(p.relacao)}</span><span class="chip">abrir ›</span></div><h3>${esc(p.nome)}</h3></div>`).join("")}
+      <p class="aviso center">Seus ciclos de mês e de ano agora ficam na aba Ciclos.</p>
       </div>` : ""}
     </section>`;
   }
@@ -596,61 +673,68 @@
     const corIdx = ({ 1: 3, 2: 4, 3: 1, 4: 2, 5: 7, 6: 4, 7: 6, 8: 1, 9: 0 })[apProx];
     const corV = ASTROS.VIRADA.cores[corIdx];
     const univ = NUM.anoUniversal(anoV);
-    const sc = secoes("ceu", [["agora", "Agora"], ["calendario", "Calendário"], ["virada", "Virada " + anoV]]);
+    const sazonal = hoje.getMonth() >= 10 || (hoje.getMonth() === 0 && hoje.getDate() <= 6);   // novembro a 6 de janeiro
+    const sc = secoes("ceu", [["lua", "Lua"], ["calendario", "Calendário"], ["ano", "Mês e ano"]]);
+    const virada = `<div class="card ${sazonal ? "ouro-b" : ""}">${sazonal ? '<span class="brilho o"></span>' : ""}
+        <div class="card-cab"><span class="mini">Virada de ano · ${anoV}</span><span class="chip ${sazonal ? "ouro" : ""}">ano universal ${univ}</span></div>
+        <div class="contagem"><div><b>${dd}</b><small>dias</small></div><div><b>${hh}</b><small>horas</small></div><div><b>${mm}</b><small>min</small></div></div>
+        <div class="sep"></div>
+        <div class="mini" style="margin-bottom:6px">Seu ano pessoal em ${anoV}</div>
+        <div class="num-hero"><div class="num-medio" style="font-size:56px">${apProx}</div><div><h3>${esc(cp.tema)}</h3><p class="sub" style="margin:4px 0 0">${esc(cp.ano)}</p></div></div>
+        ${sazonal ? `<div class="sep"></div><div style="display:flex;gap:14px;align-items:center;margin-bottom:12px"><i style="width:44px;height:44px;border-radius:14px;background:${corV.hex};flex:0 0 auto"></i><div><div class="mini">Sua cor da virada</div><b>${esc(corV.cor)}</b><p class="sub" style="margin:2px 0 0">Para ${esc(corV.para)}. Branco por baixo, para a paz, sempre combina.</p></div></div>
+        <details class="mais"><summary>Rituais de virada da tradição brasileira</summary><ul class="lista" style="margin-top:8px">${ASTROS.VIRADA.rituais.map(r => `<li><span class="ic">✦</span><span><b>${esc(r.t)}.</b> ${esc(r.d)}</span></li>`).join("")}</ul></details>` : ""}
+      </div>
+      <div class="card clique" data-ir="ceu" data-sub='"ano"' role="button" tabindex="0"><div class="card-cab"><span class="mini">Leitura avulsa · compra única</span><span class="chip">abrir ›</span></div><h3>Previsão ${anoV}, mês a mês</h3><p class="sub" style="margin:6px 0 0">Um relatório do seu ano pessoal ${apProx}. É um produto à parte do plano; a virada e os ciclos desta aba fazem parte do seu acesso.</p></div>`;
     return `<section class="pagina">
-      ${topo("Lua, calendário e virada")}
+      ${topo("Lua, calendário, mês e ano")}
       ${sc.html}
-      ${sc.at === "agora" ? `<div class="sec-corpo">
-      <h1>O céu de hoje</h1>
-      <p class="sub">A Lua marca o ritmo: quando plantar, quando agir, quando soltar.</p>
+      ${sc.at === "lua" ? `<div class="sec-corpo" ${sc.painel}>
+      <h1>A Lua de hoje</h1>
+      <p class="sub">A Lua marca o ritmo: quando começar, quando agir, quando soltar.</p>
       <div class="card neon"><span class="brilho v"></span>
         <div class="card-cab"><span class="mini">Lua agora</span><span class="chip">${M.lua.iluminacao}% · dia ${M.lua.idade} do ciclo</span></div>
         <div style="display:flex;gap:16px;align-items:center"><div class="lua-ic" style="font-size:72px">${M.lua.icone}</div><div><h2>${esc(M.lua.nome)}</h2><p style="margin:6px 0">${esc(M.lua.intencao)}</p><span class="chip ouro">Hoje: ${esc(M.lua.acao)}</span></div></div>
       </div>
       ${(() => { const L = ASTROS.lunacao(hoje), t = CICLOS.TEMAS[((L.n % 12) + 12) % 12], feito = S.luas[L.n] && Object.values(S.luas[L.n]).filter(Boolean).length || 0;
-        return `<div class="card clique" data-ir="ceu" data-sub='"ciclo"'>
+        return `<div class="card clique" data-ir="ceu" data-sub='"ciclo"' role="button" tabindex="0">
           <div class="card-cab"><span class="mini">Ciclo da Lua · dia ${Math.floor(L.idade) + 1} de 29</span><span class="chip ouro">${feito} de 4 encontros</span></div>
           <h3>Tema: ${esc(t.nome)}</h3><p class="sub" style="margin:6px 0 10px">${esc(t.pergunta)}</p>${barra(L.idade / ASTROS.SINODICO * 100)}
-          <p class="aviso" style="margin-top:8px">A cada lua nova, um tema novo e quatro encontros com o seu caderno. Toque para abrir ›</p></div>`; })()}
-      </div>` : sc.at === "calendario" ? `<div class="sec-corpo">
+          <p class="aviso" style="margin-top:8px">A cada lua nova, um tema novo e quatro encontros com o seu caderno. O primeiro encontro é aberto; os outros três fazem parte do plano. Toque para abrir ›</p></div>`; })()}
+      ${sazonal ? virada : ""}
+      </div>` : sc.at === "calendario" ? `<div class="sec-corpo" ${sc.painel}>
       <h1>O que vem pela frente</h1>
-      <p class="sub">As datas fortes das próximas semanas e os números que cruzam o seu dia.</p>
+      <p class="sub">As datas do céu nas próximas semanas e os números que cruzam o seu dia.</p>
       <div class="card">
-        <div class="card-cab"><span class="mini">Próximos portais</span></div>
-        ${proximos.length ? proximos.map(e => { const d = new Date(e.data + "T12:00:00"); return `<div class="evento"><div class="d">${d.getDate()}<small>${MESES[d.getMonth()].slice(0, 3)}</small></div><div><b>${esc(e.titulo)}</b><div class="sub" style="font-size:13.5px">${esc(e.nota)}</div></div></div>`; }).join("") : `<p class="sub">O calendário desta edição terminou. Siga pela fase da Lua acima.</p>`}
+        <div class="card-cab"><span class="mini">Datas do céu</span><span class="chip">astronomia e tradição</span></div>
+        ${proximos.length ? proximos.map(e => { const d = new Date(e.data + "T12:00:00"); return `<div class="evento"><div class="d">${d.getDate()}<small>${MESES[d.getMonth()].slice(0, 3)}</small></div><div><b>${esc(e.titulo)}</b><div class="sub" style="font-size:13.5px">${esc(e.nota)}</div></div></div>`; }).join("") : `<p class="sub">O calendário desta edição terminou. Siga pela fase da Lua.</p>`}
       </div>
       <div class="card">
         <div class="card-cab"><span class="mini">Sinais e horários-espelho</span></div>
         <p class="sub" style="margin-bottom:10px">Quando um número repetido cruza o seu dia, a tradição lê como um recado. Anote e observe o que estava pensando na hora.</p>
         <ul class="lista">${Object.entries(NUM.ANJOS).map(([n, t]) => `<li><span class="ic" style="font-family:var(--serif);font-size:18px;min-width:38px">${n}</span><span>${esc(t)}</span></li>`).join("")}</ul>
       </div>
-      </div>` : `<div class="sec-corpo">
-      <h1>A virada para ${anoV}</h1>
-      <p class="sub">O salto de ano: seu número, sua cor e os rituais da tradição.</p>
-      <div class="card ouro-b"><span class="brilho o"></span>
-        <div class="card-cab"><span class="mini">Contagem para ${anoV}</span><span class="chip ouro">ano universal ${univ}</span></div>
-        <div class="contagem"><div><b>${dd}</b><small>dias</small></div><div><b>${hh}</b><small>horas</small></div><div><b>${mm}</b><small>min</small></div></div>
+      </div>` : `<div class="sec-corpo" ${sc.painel}>
+      <h1>Seu mês e seu ano</h1>
+      <p class="sub">Os ciclos pessoais que você está vivendo, pelos números da sua data.</p>
+      <div class="card">
+        <div class="card-cab"><span class="mini">Seus ciclos</span></div>
+        <div class="grade3">
+          <div><div class="mini">Ano pessoal ${M.anoRef}</div><div class="num-medio">${M.anoPessoal}</div><div class="sub" style="font-size:12.5px">${esc(NUM.CICLO[M.anoPessoal].tema)}</div></div>
+          <div><div class="mini">Mês pessoal</div><div class="num-medio">${M.mesPessoal}</div><div class="sub" style="font-size:12.5px">${esc(NUM.CICLO[M.mesPessoal].tema)}</div></div>
+          <div><div class="mini">Ano pessoal ${M.anoRef + 1}</div><div class="num-medio">${M.anoPessoalProx}</div><div class="sub" style="font-size:12.5px">${esc(NUM.CICLO[M.anoPessoalProx].tema)}</div></div>
+        </div>
         <div class="sep"></div>
-        <div class="mini" style="margin-bottom:6px">Seu ano pessoal em ${anoV}</div>
-        <div class="num-hero"><div class="num-medio" style="font-size:56px">${apProx}</div><div><h3>${esc(cp.tema)}</h3><p class="sub" style="margin:4px 0 0">${esc(cp.ano)}</p></div></div>
-        <button class="btn primario pequeno" style="width:100%;margin-top:12px" data-ir="ceu" data-sub='"ano"'>Abrir minha Previsão ${anoV} ›</button>
+        <p>${esc(NUM.CICLO[M.anoPessoal].ano)}</p>
+        <button class="btn neon pequeno" data-ir="hoje" data-sub='"mes"' style="width:100%;margin-top:6px">Abrir a previsão de ${MESES[hoje.getMonth()]} ›</button>
       </div>
-      <div class="card">
-        <div class="card-cab"><span class="mini">Sua cor da virada</span></div>
-        <div style="display:flex;gap:14px;align-items:center;margin-bottom:12px"><i style="width:48px;height:48px;border-radius:16px;background:${corV.hex};box-shadow:0 0 24px ${corV.hex};flex:0 0 auto"></i><div><h3>${esc(corV.cor)}</h3><p class="sub" style="margin:2px 0 0">Para ${esc(corV.para)}: a vibração do seu ano pessoal ${apProx}. Branco por baixo, para a paz, sempre combina.</p></div></div>
-        <div class="cores">${ASTROS.VIRADA.cores.map((c, i) => `<div class="cor ${i === corIdx ? "on" : ""}"><i style="background:${c.hex}"></i>${esc(c.cor.split(" / ")[0])}<br><span style="opacity:.7">${esc(c.para)}</span></div>`).join("")}</div>
-      </div>
-      <div class="card">
-        <div class="card-cab"><span class="mini">Rituais de virada</span><span class="chip">tradição brasileira</span></div>
-        <ul class="lista">${ASTROS.VIRADA.rituais.map(r => `<li><span class="ic">✦</span><span><b>${esc(r.t)}.</b> ${esc(r.d)}</span></li>`).join("")}</ul>
-      </div>
+      ${sazonal ? "" : virada}
       </div>`}
     </section>`;
   }
 
   function telaEu(M) {
     return `<section class="pagina">
-      ${topo("Seu perfil")}
+      <header class="topo">${voltar(["hoje", "mapa", "guia", "ceu", "portais"].includes(rota.de) ? rota.de : "hoje")}<span class="chip">perfil</span></header>
       <h1>${esc(S.perfil.nome)}</h1>
       <p class="sub">Nascida em ${fmtCurta(S.perfil.nascimento)} · ${M.signo.simbolo} ${esc(M.signo.nome)} · destino ${M.destino}</p>
       <div class="card">
@@ -660,18 +744,32 @@
         <div class="campo"><label>Tratamento</label><select id="p-genero"><option value="f" ${S.genero !== "m" ? "selected" : ""}>Feminino</option><option value="m" ${S.genero === "m" ? "selected" : ""}>Masculino</option></select></div></div>
         <button class="btn primario" id="p-salvar">Salvar alterações</button>
       </div>
+      <h2 class="bloco-tit">Conta e acesso</h2>
+      ${pagamentoHTML()}
       ${window.CONTA ? `<div class="card neon"><span class="brilho v"></span>${contaHTML()}</div>` : ""}
       <div class="card">
-        <div class="mini" style="margin-bottom:10px">Lembrete da noite</div>
-        <p class="sub" style="margin-bottom:10px">Adicione ao calendário do celular um lembrete diário às 21h para abrir sua carta e fazer a prática do dia.</p>
+        <div class="mini" style="margin-bottom:8px">O que fica onde</div>
+        <ul class="lista">
+          <li><span class="ic">▣</span><span><b>Neste aparelho:</b> seu diário, suas práticas, o caminho e o mapa. Não vão para servidor nenhum. Para levar a outro celular, use o backup.</span></li>
+          <li><span class="ic">@</span><span><b>No seu e-mail:</b> o que você comprou. Entrando com o e-mail da compra, o acesso vale em qualquer aparelho.</span></li>
+        </ul>
+        ${S.acessoPor === "codigo" ? `<p class="aviso" style="margin:8px 0 0">Você entrou com um código de acesso. Ele continua valendo neste aparelho. Para não depender dele ao trocar de celular, entre também com o e-mail da compra.</p>` : ""}
+      </div>
+      <h2 class="bloco-tit">Ajustes</h2>
+      <div class="card">
+        <p class="sub" style="margin-bottom:10px">Um lembrete diário às 21h no calendário do celular, para abrir sua carta e a prática do dia.</p>
         <button class="btn neon pequeno" id="lembrete" style="width:100%">Lembrar toda noite às 21h</button>
         <button class="btn fantasma pequeno" id="rever-tour" style="width:100%;margin-top:10px">Rever a apresentação da Estela</button>
-        <div class="sep"></div>
-        <div class="mini" style="margin-bottom:10px">Seus dados</div>
+      </div>
+      <h2 class="bloco-tit">Dados deste aparelho</h2>
+      ${(() => { let tem = false; try { tem = !!localStorage.getItem(CHAVE_ANTERIOR); } catch (e) { console.warn(new Date().toISOString(), "[backup] não li a cópia anterior:", e); }
+        return tem ? `<div class="card pendente" role="status"><div class="mini" style="margin-bottom:8px">Backup restaurado</div><p class="sub" style="margin:0 0 10px">Confira se o seu diário está como você esperava. A cópia de antes da restauração continua guardada até você confirmar.</p>
+          <div class="linha-btn"><button class="btn primario pequeno" id="rest-ok">Está tudo certo</button><button class="btn fantasma pequeno" id="rest-desfazer">Desfazer</button></div></div>` : ""; })()}
+      <div class="card">
+        <p class="sub" style="margin-bottom:10px">O backup guarda o seu diário inteiro: caminho, práticas, cartas, sinais e ciclos anteriores. Os acessos comprados não entram no arquivo: eles ficam ligados ao seu e-mail.</p>
         <div class="linha-btn"><button class="btn fantasma" id="exportar">Baixar backup</button><button class="btn fantasma" id="importar-btn">Restaurar</button></div>
-        <input type="file" id="importar" accept="application/json" class="oculto">
-        <div class="linha-btn" style="margin-top:10px"><button class="btn fantasma" id="imprimir">Imprimir mapa</button><button class="btn fantasma" id="apagar" style="color:#FFB3B3">Apagar tudo</button></div>
-        <p class="aviso" style="margin-top:10px">Tudo fica salvo apenas neste aparelho e navegador. Faça um backup antes de trocar de celular.</p>
+        <input type="file" id="importar" accept="application/json,.json" class="oculto" aria-label="Arquivo de backup">
+        <div class="linha-btn" style="margin-top:10px"><button class="btn fantasma" id="imprimir">Imprimir mapa</button><button class="btn fantasma perigo" id="apagar">Apagar tudo</button></div>
       </div>
       <div class="card">
         <div class="mini" style="margin-bottom:8px">Aviso importante</div>
@@ -691,7 +789,7 @@
     }));
 
     // hoje
-    const nivel = $("#nivel"); if (nivel) nivel.onchange = () => { const k = hojeKey(); S.dias[k] = Object.assign(S.dias[k] || {}, { nivel: Number(nivel.value) }); salvar(); presenca(); render(true); };
+    const nivel = $("#nivel"); if (nivel) nivel.onchange = () => { const k = hojeKey(); S.dias[k] = Object.assign(S.dias[k] || {}, { nivel: Number(nivel.value), nivelEm: Date.now() }); salvar(); presenca(); render(true); };
     const carta = $("#carta"); if (carta) { const revelar = () => { if (carta.classList.contains("virada")) return; const k = hojeKey(); S.dias[k] = Object.assign(S.dias[k] || {}, { carta: true }); salvar(); carta.classList.add("virada"); presenca(); setTimeout(() => render(true), 900); }; carta.onclick = revelar; carta.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); revelar(); } }; }
     const c2 = $("#carta2"); if (c2) c2.onclick = () => { const k = hojeKey(); S.dias[k] = Object.assign(S.dias[k] || {}, { carta2: true }); salvar(); render(true); };
     app.querySelectorAll("[data-res]").forEach(b => b.onclick = () => {
@@ -704,8 +802,17 @@
     const sok = $("#sinal-ok"); if (sok) { const guardar = () => { const inp = $("#sinal"), t = inp.value.trim(); if (!t) return toast("Escreva o sinal antes de guardar."); S.sinais.push({ data: hojeKey(), tipo: "sinal", texto: t }); salvar(); presenca(); toast("Sinal guardado ✦"); render(true); }; sok.onclick = guardar; $("#sinal").onkeydown = e => { if (e.key === "Enter") guardar(); }; }
     app.querySelectorAll("[data-dia]").forEach(inp => inp.addEventListener("input", debounce(() => { const k = hojeKey(); S.dias[k] = Object.assign(S.dias[k] || {}, { [inp.dataset.dia]: inp.value }); salvar(); piscar("#salvo-dia"); }, 400)));
     const comp = $("#compartilhar"); if (comp) comp.onclick = () => compartilhar(M);
-    app.querySelectorAll("[data-sec]").forEach(b => b.onclick = () => { const [a, v] = b.dataset.sec.split(":"); if (secSel[a] === v) return; secSel[a] = v; secMudou = true; render(true); const alvo = $(".secoes"); if (alvo && window.scrollY > alvo.offsetTop) window.scrollTo({ top: Math.max(0, alvo.offsetTop - 12) }); });
-    app.querySelectorAll("[data-momento]").forEach(b => b.onclick = () => { momentoSel = b.dataset.momento; secMudou = true; if (rota.aba !== "hoje" || rota.sub) return ir("hoje"); render(true); const alvo = $(".momentos"); if (alvo) window.scrollTo({ top: Math.max(0, alvo.offsetTop - 12) }); });
+    app.querySelectorAll("[data-sec]").forEach(b => b.onclick = () => { const [a, v] = b.dataset.sec.split(":"); if (secSel[a] === v) return; secSel[a] = v; secMudou = true; render(true); const alvo = $(".caps"); if (alvo && window.scrollY > alvo.offsetTop) window.scrollTo({ top: Math.max(0, alvo.offsetTop - 12) }); if (a === "guia" && v === "trilha") GUIA_APP.situar(); const foco = document.getElementById(b.id); if (foco) foco.focus({ preventScroll: true }); });
+    app.querySelectorAll("[data-momento]").forEach(b => b.onclick = () => { momentoSel = b.dataset.momento; secMudou = true; if (rota.aba !== "hoje" || rota.sub) return ir("hoje"); render(true); const alvo = $(".momentos"); if (alvo) window.scrollTo({ top: Math.max(0, alvo.offsetTop - 12) }); const foco = b.id && document.getElementById(b.id); if (foco) foco.focus({ preventScroll: true }); });
+    // abas de capítulo: setas esquerda e direita trocam, como manda o padrão de tablist
+    app.querySelectorAll("[role=tablist]").forEach(tl => tl.addEventListener("keydown", ev => {
+      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(ev.key)) return;
+      const ts = Array.from(tl.querySelectorAll("[role=tab]")), i = ts.indexOf(document.activeElement); if (i < 0) return;
+      ev.preventDefault(); ts[ev.key === "Home" ? 0 : ev.key === "End" ? ts.length - 1 : (i + (ev.key === "ArrowRight" ? 1 : -1) + ts.length) % ts.length].click();
+    }));
+    app.querySelectorAll(".card.clique[data-ir]").forEach(el => { if (!el.hasAttribute("tabindex")) { el.tabIndex = 0; el.setAttribute("role", "button"); } el.addEventListener("keydown", ev => { if (ev.target === el && (ev.key === "Enter" || ev.key === " ")) { ev.preventDefault(); el.click(); } }); });
+    const apv = $("#ap-ver"); if (apv) apv.onclick = () => { S.apresentacao = ""; salvar(); ESTELA.rever(); };
+    const apn = $("#ap-nao"); if (apn) apn.onclick = () => { S.apresentacao = ""; salvar(); render(true); toast("Tudo bem. Ela fica em Perfil, se quiser ver depois."); };
     const fd = $("#fechar-dia"); if (fd) fd.onclick = () => { const k = hojeKey(); S.dias[k] = Object.assign(S.dias[k] || {}, { noite: true }); salvar(); presenca(); celebrar(); toast("Dia fechado ✦ até amanhã"); setTimeout(() => render(true), 700); };
     ESTELA.ligar();
 
@@ -728,8 +835,27 @@
       if (nome.split(/\s+/).length < 2 || !nasc) return toast("Nome completo e data são obrigatórios.");
       S.perfil = { nome, nascimento: nasc }; S.foco = $("#p-foco").value; S.genero = $("#p-genero").value; salvar(); toast("Mapa atualizado ✦"); render();
     };
-    const ex = $("#exportar"); if (ex) ex.onclick = () => { const b = new Blob([JSON.stringify(S, null, 2)], { type: "application/json" }); const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = `segredo-das-estrelas-backup-${hojeKey()}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); };
-    const ib = $("#importar-btn"), inp = $("#importar"); if (ib) { ib.onclick = () => inp.click(); inp.onchange = () => { const f = inp.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { try { const d = JSON.parse(r.result); if (!d.perfil) throw new Error("sem perfil"); S = Object.assign(padrao(), d); salvar(); toast("Backup restaurado ✦"); render(); } catch (e) { console.warn("[importar]", e); toast("Arquivo inválido."); } }; r.readAsText(f); }; }
+    const ex = $("#exportar"); if (ex) ex.onclick = () => { const b = new Blob([JSON.stringify(N.exportar(S), null, 2)], { type: "application/json" }); const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = `segredo-das-estrelas-backup-${hojeKey()}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); toast("Backup baixado. Guarde o arquivo em um lugar seguro ✦"); };
+    // restaurar: confere o arquivo inteiro antes de trocar qualquer coisa e guarda a cópia anterior até a pessoa confirmar
+    const ib = $("#importar-btn"), inp = $("#importar"); if (ib) { ib.onclick = () => inp.click(); inp.onchange = () => { const f = inp.files[0]; if (!f) return; const r = new FileReader();
+      r.onerror = () => { console.warn(new Date().toISOString(), "[backup] leitura do arquivo falhou:", r.error); toast("Não consegui abrir o arquivo. Seu diário continua como estava."); };
+      r.onload = () => {
+        const v = N.validarBackup(String(r.result)); inp.value = "";
+        if (!v.ok) { console.warn(new Date().toISOString(), "[backup] recusado:", v.erros.join("; ")); return toast("Este arquivo não pôde ser restaurado: " + v.erros[0] + ". Seu diário continua como estava."); }
+        const nd = Object.keys(v.estado.dias || {}).length, np = Object.keys(v.estado.praticas || {}).length;
+        if (!confirm(`Restaurar o backup de ${v.estado.perfil.nome}? Ele tem ${nd} ${nd === 1 ? "dia" : "dias"} de diário e ${np} ${np === 1 ? "dia" : "dias"} com prática. O diário deste aparelho será trocado; uma cópia dele fica guardada até você confirmar que deu certo.`)) return;
+        const anterior = JSON.stringify(S);
+        try { localStorage.setItem(CHAVE_ANTERIOR, anterior); }
+        catch (e) { console.warn(new Date().toISOString(), "[backup] não guardei a cópia anterior:", e); return toast("Não consegui guardar a cópia de segurança, então não restaurei. Libere espaço e tente de novo."); }
+        S = N.restaurar(S, v.estado);
+        if (!salvar()) { S = N.migrar(JSON.parse(anterior)); try { localStorage.removeItem(CHAVE_ANTERIOR); } catch (e) { console.warn(new Date().toISOString(), "[backup] não removi a cópia:", e); } salvar(); render(true); return toast("Não consegui gravar o backup. Seu diário continua como estava."); }
+        toast("Backup restaurado. Confira e confirme no Perfil ✦"); render(true); window.scrollTo({ top: 0 });
+      }; r.readAsText(f); }; }
+    const rok = $("#rest-ok"); if (rok) rok.onclick = () => { try { localStorage.removeItem(CHAVE_ANTERIOR); } catch (e) { console.warn(new Date().toISOString(), "[backup] não removi a cópia:", e); } toast("Restauração confirmada ✦"); render(true); };
+    const rdf = $("#rest-desfazer"); if (rdf) rdf.onclick = () => {
+      try { const raw = localStorage.getItem(CHAVE_ANTERIOR); if (!raw) return render(true); S = N.migrar(JSON.parse(raw)); if (salvar()) localStorage.removeItem(CHAVE_ANTERIOR); toast("Restauração desfeita. Seu diário voltou a ser o de antes."); render(true); }
+      catch (e) { console.warn(new Date().toISOString(), "[backup] desfazer falhou:", e); toast("Não consegui desfazer agora. A cópia anterior continua guardada."); }
+    };
     const lem = $("#lembrete"); if (lem) lem.onclick = () => {
       const d = new Date(), p2 = n => String(n).padStart(2, "0"), dia = `${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}`, url = location.href.split("#")[0].split("?")[0];
       const ics = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//O Segredo das Estrelas//PT", "BEGIN:VEVENT", `UID:segredo-das-estrelas-${Date.now()}@app`, `DTSTAMP:${dia}T000000Z`, `DTSTART:${dia}T210000`, `DTEND:${dia}T211000`, "RRULE:FREQ=DAILY",
@@ -738,7 +864,7 @@
       toast("Abra o arquivo baixado para adicionar ao calendário ✦");
     };
     const imp = $("#imprimir"); if (imp) imp.onclick = () => { ir("mapa"); setTimeout(() => { secSel.mapa = "tudo"; render(true); addEventListener("afterprint", () => { delete secSel.mapa; render(true); }, { once: true }); window.print(); }, 500); };
-    const ap = $("#apagar"); if (ap) ap.onclick = () => { if (confirm("Apagar todos os dados deste aparelho? Isso não pode ser desfeito.")) { localStorage.removeItem(CONFIG.chave); S = padrao(); rota = { aba: "hoje", sub: null }; render(); } };
+    const ap = $("#apagar"); if (ap) ap.onclick = () => { if (confirm("Apagar o diário, o caminho e o mapa deste aparelho? Isso não pode ser desfeito. Seus acessos comprados continuam valendo.")) { const novo = N.restaurar(S, padrao()); try { localStorage.removeItem(CHAVE_ANTERIOR); } catch (e) { console.warn(new Date().toISOString(), "[storage] não removi a cópia:", e); } S = novo; salvar(); rota = { aba: "hoje", sub: null }; render(); } };
   }
   function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
   function piscar(sel) { const el = $(sel); if (!el) return; el.classList.add("on"); setTimeout(() => el.classList.remove("on"), 1200); }
@@ -763,9 +889,10 @@
 
   /* ---------- celebração ---------- */
   function celebrar() {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const c = document.createElement("canvas"); c.className = "confete"; document.body.appendChild(c);
     c.width = innerWidth; c.height = innerHeight; const ctx = c.getContext("2d");
-    const ps = Array.from({ length: 70 }, () => ({ x: innerWidth / 2, y: innerHeight * 0.55, vx: (Math.random() - .5) * 14, vy: -Math.random() * 14 - 4, r: Math.random() * 4 + 2, cor: ["#F6DFA6", "#E8C078", "#C79BFF", "#FF7AD9", "#fff"][Math.floor(Math.random() * 5)], a: 1 }));
+    const ps = Array.from({ length: 42 }, () => ({ x: innerWidth / 2, y: innerHeight * 0.55, vx: (Math.random() - .5) * 14, vy: -Math.random() * 14 - 4, r: Math.random() * 2.6 + 1.2, cor: ["#FFE0A0", "#E8B75B", "#FFF4D7", "#FFE0A0", "#BFAEF5"][Math.floor(Math.random() * 5)], a: 1 }));
     let t0 = performance.now();
     (function passo(t) {
       const dt = Math.min(32, t - t0) / 16; t0 = t; ctx.clearRect(0, 0, c.width, c.height);
@@ -804,17 +931,13 @@
 
   /* ---------- céu estrelado ---------- */
   function ceu() {
-    const c = $("#ceu"), x = c.getContext("2d"); let W, H, estrelas = [], parado = false, cadente = null;
+    const c = $("#ceu"), x = c.getContext("2d"); let W, H, estrelas = [], parado = false;
     const reduzido = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    function dim() { W = c.width = innerWidth * devicePixelRatio; H = c.height = innerHeight * devicePixelRatio; estrelas = Array.from({ length: Math.min(140, Math.floor(W * H / 14000)) }, () => ({ x: Math.random() * W, y: Math.random() * H, r: (Math.random() * 1.3 + .3) * devicePixelRatio, f: Math.random() * 6.28, v: Math.random() * .02 + .005, cor: Math.random() < .15 ? "232,192,120" : Math.random() < .3 ? "199,155,255" : "255,255,255" })); }
+    function dim() { W = c.width = innerWidth * devicePixelRatio; H = c.height = innerHeight * devicePixelRatio; estrelas = Array.from({ length: Math.min(70, Math.floor(W * H / 30000)) }, () => ({ x: Math.random() * W, y: Math.random() * H, r: (Math.random() * .8 + .3) * devicePixelRatio, f: Math.random() * 6.28, v: Math.random() * .008 + .002, cor: Math.random() < .12 ? "255,224,160" : "255,246,226" })); }
     function desenhar() {
       x.clearRect(0, 0, W, H);
-      if (!cadente && !reduzido && Math.random() < 0.006) cadente = { x: Math.random() * W * .8, y: Math.random() * H * .35, vx: (9 + Math.random() * 6) * devicePixelRatio, vy: (4 + Math.random() * 3) * devicePixelRatio, a: 1 };
-      if (cadente) { const m = cadente, g = x.createLinearGradient(m.x, m.y, m.x - m.vx * 9, m.y - m.vy * 9); g.addColorStop(0, `rgba(255,247,230,${m.a})`); g.addColorStop(1, "rgba(199,155,255,0)");
-        x.globalAlpha = 1; x.strokeStyle = g; x.lineWidth = 1.6 * devicePixelRatio; x.lineCap = "round"; x.beginPath(); x.moveTo(m.x, m.y); x.lineTo(m.x - m.vx * 9, m.y - m.vy * 9); x.stroke();
-        m.x += m.vx; m.y += m.vy; m.a -= 0.035; if (m.a <= 0 || m.x > W || m.y > H) cadente = null; }
-      estrelas.forEach(s => { s.f += s.v; const a = .35 + .65 * (Math.sin(s.f) + 1) / 2; x.globalAlpha = a; x.fillStyle = `rgb(${s.cor})`; x.beginPath(); x.arc(s.x, s.y, s.r, 0, 7); x.fill(); });
-      if (!reduzido && !parado) setTimeout(() => requestAnimationFrame(desenhar), 50);
+      estrelas.forEach(s => { s.f += s.v; const a = .3 + .4 * (Math.sin(s.f) + 1) / 2; x.globalAlpha = a; x.fillStyle = `rgb(${s.cor})`; x.beginPath(); x.arc(s.x, s.y, s.r, 0, 7); x.fill(); });
+      if (!reduzido && !parado) setTimeout(() => requestAnimationFrame(desenhar), 120);
     }
     addEventListener("resize", () => { dim(); if (reduzido) desenhar(); });
     document.addEventListener("visibilitychange", () => { parado = document.hidden; if (!parado) desenhar(); });
@@ -823,7 +946,8 @@
 
   /* ---------- núcleo exposto para os módulos (premium.js, telas-premium.js) ---------- */
   window.CDA = {
-    CONFIG, get S() { return S; }, get rota() { return rota; }, salvar, esc, toast, ir, render, mapa, barra, chips, voltar, topo, celebrar, debounce, presenca, sequencia, secoes,
+    CONFIG, get S() { return S; }, get rota() { return rota; }, salvar, esc, toast, ir, render, mapa, barra, chips, voltar, topo, celebrar, debounce, presenca, sequencia, secoes, secao: (aba, v) => { secSel[aba] = v; }, pagamentoHTML, sincronizarAcesso,
+    marcarPagamento: portal => { S.pagamento = { portal, em: Date.now() }; salvar(); },
     hojeKey, fmtCurta, fmtData, MESES, DIAS, DIAS_C, diasPessoais, melhor, luasDoMes, diaExt, ymKey, primeiroNome, diaDoAno, arvoreSVG, $
   };
 
@@ -837,5 +961,10 @@
       .catch(e => console.warn("[conta] sincronização inicial falhou (segue com o que está salvo):", e.message));
   }
   render();
-  setInterval(() => { if (rota.aba === "ceu" && !rota.sub && secSel.ceu === "virada") render(true); }, 60000);
+  if (rota.aba === "guia" && window.GUIA_APP) GUIA_APP.situar();
+  // ao voltar do checkout ou reabrir o app, confere os acessos de novo
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) sincronizarAcesso(false); });
+  addEventListener("pageshow", ev => { if (ev.persisted) sincronizarAcesso(false); });
+  addEventListener("online", () => sincronizarAcesso(false));
+  setInterval(() => { if (rota.aba === "ceu" && !rota.sub && (secSel.ceu === "ano" || secSel.ceu === "lua" || !secSel.ceu)) render(true); }, 60000);
 })();

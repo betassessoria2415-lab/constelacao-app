@@ -44,8 +44,8 @@ window.PREMIUM = (function () {
     { id: "nome", icone: "✎", nome: "Nome de Poder", preco: "R$ 17", chamada: "O nome que você assina também vibra.",
       beneficios: ["Análise da sua assinatura e do nome social", "Nome do negócio ou da marca: qual vibra melhor para vender", "Nome de bebê: compare opções lado a lado", "Sugestões de ajuste para chegar ao número desejado"],
       checkout: "", hash: "a33db6b13d7fdf70a56d01edb2a07bbefe862c9f1c416a99bf0e8839da11e036" },
-    { id: "guia", icone: "➶", nome: "Trajetória completa", preco: "R$ 49,90 por mês", mensal: true, plano: "Completo", chamada: "As etapas 4 a 7: transmutar, sustentar, agir e receber.",
-      beneficios: ["Etapa 4, Polaridade: virar medo em confiança, um grau por vez", "Etapa 5, Ritmo: manter a prática nos dias de maré baixa", "Etapa 6, Causa e Efeito: o desejo vira plano e ação diária", "Etapa 7, Gênero: o estado do desejo realizado e a entrega"],
+    { id: "guia", icone: "✦", nome: "Caminho completo", preco: "R$ 49,90 por mês", mensal: true, plano: "Completo", chamada: "As estrelas 4 a 7 e a carta de cada semana.",
+      beneficios: ["Estrela 4, Atravessar a dúvida: um ritual de retomada para os dias difíceis", "Estrela 5, Sustentar o ritmo: a prática acompanhando a Lua", "Estrela 6, Dar forma ao desejo: um gesto concreto com dia e hora", "Estrela 7, Colher e seguir: reconhecer o que mudou e escolher o próximo ciclo", "Carta da semana, escrita com os seus próprios registros"],
       checkout: "", hash: "" },
     { id: "clube", icone: "✦", nome: "Clube das Estrelas", preco: "R$ 49,90 por mês", plano: "Completo", chamada: "Tudo o que renova a cada mês e a cada lua.", mensal: true,
       beneficios: ["Previsão completa de cada mês, liberada no dia 1", "Ciclos da Lua com os quatro encontros", "Ver a orientação de amanhã agora", "Segunda carta do dia"],
@@ -117,7 +117,7 @@ window.PREMIUM = (function () {
     document.body.appendChild(el);
     requestAnimationFrame(() => el.classList.add("on"));
     el.addEventListener("click", ev => { if (ev.target === el) fechar(); });
-    el.querySelector("#folha-comprar").onclick = () => { const link = p.checkout || (C.CONFIG.checkouts || {})[id]; if (link) window.open(link, "_blank", "noopener"); else C.toast("Link de compra ainda não configurado."); };
+    el.querySelector("#folha-comprar").onclick = () => { const link = p.checkout || (C.CONFIG.checkouts || {})[id]; if (link) { C.marcarPagamento(id); window.open(link, "_blank", "noopener"); fechar(); C.toast("Quando o pagamento for confirmado, o acesso abre aqui."); setTimeout(() => C.render(true), 400); } else C.toast("Link de compra ainda não configurado."); };
     const tentar = () => {
       if (validar(id, el.querySelector("#folha-cod").value)) { fechar(); C.celebrar(); C.toast(`${p.nome} liberado ✦`); setTimeout(() => C.render(true), 500); }
       else C.toast("Código não reconhecido. Confira o e-mail da compra.");

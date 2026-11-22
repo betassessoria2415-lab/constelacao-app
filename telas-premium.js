@@ -10,29 +10,65 @@
   const nasc = () => C().S.perfil.nascimento.split("-").map(Number);
 
   /* ---------- loja ---------- */
+  // Clube: um plano principal, o que cada acesso tem, e as compras avulsas em bloco próprio
+  const MODULOS = [
+    ["guia", "✦", "Caminho completo", "As estrelas 4 a 7, depois das três primeiras.", ["guia", ""]],
+    ["guia", "✉", "Carta da semana", "A cada sete dias, uma carta escrita com os seus registros.", ["guia", ""], "registros"],
+    ["clube", "☾", "Encontros da Lua", "Os quatro encontros de cada ciclo lunar, com o seu caderno.", ["ceu", "ciclo"]],
+    ["clube", "◷", "Previsão do mês", "Seus dias de ouro, dias de afeto e o calendário do mês.", ["hoje", "mes"]],
+    ["profundo", "◈", "Mapa Profundo", "Sua linha da vida, desafios e a leitura combinada dos números.", ["mapa", "profundo"]],
+    ["lua", "☽", "Lua e Ascendente", "Seu signo lunar e seu ascendente, lidos junto com o Sol.", ["mapa", "lua"]],
+    ["amor", "♡", "Amor e Vínculos", "Pessoas ilimitadas na compatibilidade e o relatório a dois.", ["mapa", "compat"]]
+  ];
   EXT.telas["portais/"] = function () {
     const c = C(), e = c.esc, S = c.S, deg = P.degustando();
     const restam = deg ? Math.max(1, Math.ceil((c.CONFIG.diasDegustacao || 7) - (Date.now() - new Date(S.criadoEm).getTime()) / 86400000)) : 0;
-    const estaOk = p => P.liberado(p.id) && !(p.id === "clube" && deg);
-    const abertos = P.CATALOGO.filter(estaOk), fechados = P.CATALOGO.filter(p => !estaOk(p));
-    const sc = c.secoes("portais", fechados.length ? [["abrir", "Para abrir · " + fechados.length], ["meus", "Liberados · " + abertos.length]] : [["meus", "Liberados · " + abertos.length]]);
-    const cartao = p => { const ok = P.liberado(p.id) && !(p.id === "clube" && deg), r = ROTAS[p.id];
-        return `<div class="card clique portal-card ${ok ? "" : "neon"}" data-ir="${r[0]}" data-sub='"${r[1]}"'>${ok ? "" : '<span class="brilho v"></span>'}
-          <div class="card-cab"><span class="portal-ic">${p.icone}</span><span class="chip ${ok ? "verde" : "ouro"}">${ok ? "liberado ✓" : p.plano ? "plano " + e(p.plano) : e(p.preco)}</span></div>
-          <h3>${e(p.nome)}</h3><p class="sub" style="margin:6px 0 10px">${e(p.chamada)}</p>
-          <ul class="lista compacta">${p.beneficios.slice(0, 3).map(b => `<li><span class="ic">✦</span><span>${e(b)}</span></li>`).join("")}</ul>
-          ${ok ? "" : `<button class="btn primario pequeno" data-portal="${p.id}" style="width:100%;margin-top:12px">${p.plano ? "Assinar o plano " + e(p.plano) : "Liberar " + e(p.nome)}</button>`}
-        </div>`; };
+    const tem = id => P.liberado(id) && !(id === "clube" && deg), completo = tem("guia"), plus = !completo && tem("clube");
+    const nivel = completo ? "Completo" : plus ? "Plus" : "Essencial";
+    const linha = m => `<div class="modulo ${tem(m[0]) ? "ok" : ""}" data-ir="${m[4][0]}" data-sub='"${m[4][1]}"' ${m[5] ? `data-cap="guia:${m[5]}"` : ""} role="button" tabindex="0">
+        <span class="portal-ic" aria-hidden="true">${m[1]}</span><span class="modulo-txt"><b>${e(m[2])}</b><small>${e(m[3])}</small></span>
+        <span class="chip ${tem(m[0]) ? "verde" : ""}">${tem(m[0]) ? "abrir ›" : m[0] === "clube" && deg ? "degustação ›" : "ver prévia ›"}</span></div>`;
+    const avulso = id => { const p = P.porId(id), ok = P.liberado(id), r = ROTAS[id];
+      return `<div class="card clique" data-ir="${r[0]}" data-sub='"${r[1]}"' role="button" tabindex="0"><div class="card-cab"><span class="portal-ic" aria-hidden="true">${p.icone}</span><span class="chip ${ok ? "verde" : "ouro"}">${ok ? "liberado ✓" : e(p.preco) + " · compra única"}</span></div>
+        <h3>${e(p.nome)}</h3><p class="sub" style="margin:6px 0 0">${e(p.chamada)} ›</p></div>`; };
+    const sete = (c.CONFIG.avulsos || {}).seteNoites;
     return `<section class="pagina">
-      ${c.topo("Seus portais")}
-      <h1>Portais</h1>
-      <p class="sub">Cada portal abre uma camada mais funda do seu mapa. Toque para ver a prévia com os seus dados.</p>
-      ${deg ? `<div class="card ouro-b"><div class="mini" style="margin-bottom:6px">Degustação do Clube</div><p style="margin:0">Você tem acesso completo ao Clube por mais <b>${restam} ${restam === 1 ? "dia" : "dias"}</b>. Depois, a previsão do mês e os ciclos da Lua pedem o código do mês.</p></div>` : ""}
-      ${sc.html}
-      <div class="sec-corpo">${(sc.at === "abrir" ? fechados : abertos).map(cartao).join("") || `<div class="card"><p class="sub" style="margin:0">${sc.at === "abrir" ? "Todos os portais estão liberados para você." : "Nenhum portal liberado ainda. Veja em Para abrir o que cada um revela."}</p></div>`}</div>
-      <p class="aviso center">Os códigos chegam no e-mail da compra e liberam este aparelho. Conteúdo simbólico, para reflexão.</p>
+      ${c.topo("Clube das Estrelas")}
+      <h1>${completo ? "Seus benefícios" : "Clube"}</h1>
+      <p class="sub">${completo ? "Você está no plano Completo. Tudo abaixo está aberto: toque para ir direto." : "Um plano só, com tudo o que aprofunda o seu caminho."}</p>
+      ${c.pagamentoHTML()}
+      ${completo ? `<div class="card ouro-b"><div class="card-cab"><span class="mini">Plano Completo</span><span class="chip verde">ativo ✓</span></div>${MODULOS.map(linha).join("")}</div>` : `
+      <div class="card neon plano"><span class="brilho v"></span>
+        <div class="card-cab"><span class="mini">Plano Completo</span><span class="chip ouro">assinatura mensal</span></div>
+        <div class="plano-preco"><b>R$ 49,90</b><span>por mês</span></div>
+        <p class="sub" style="margin:4px 0 12px">Cobrança mensal, renovada automaticamente. O acesso vale enquanto a assinatura estiver em dia e você pode cancelar quando quiser, pela plataforma de pagamento.</p>
+        ${MODULOS.map(linha).join("")}
+        <button class="btn primario" data-portal="guia" style="margin-top:14px">Assinar o plano Completo ✦</button>
+        <p class="aviso center" style="margin:10px 0 0">A compra fica ligada ao seu e-mail e vale em qualquer aparelho.</p>
+      </div>
+      <div class="card">
+        <div class="card-cab"><span class="mini">Seu acesso hoje</span><span class="chip violeta">${nivel}</span></div>
+        <ul class="lista compacta">
+          <li><span class="ic">✓</span><span>Mapa, tela Hoje, as três primeiras estrelas do Caminho, seus registros e o primeiro encontro de cada Lua.</span></li>
+          ${plus ? `<li><span class="ic">✓</span><span>Plus: previsão do mês, os quatro encontros da Lua, orientação de amanhã e segunda carta.</span></li>` : ""}
+          ${deg ? `<li><span class="ic">☾</span><span>Degustação: previsão do mês e encontros da Lua abertos por mais <b>${restam} ${restam === 1 ? "dia" : "dias"}</b>.</span></li>` : ""}
+          <li><span class="ic">＋</span><span>O Completo acrescenta: estrelas 4 a 7, carta da semana, Mapa Profundo, Lua e Ascendente e Amor e Vínculos${plus ? "" : ", além da previsão do mês e dos encontros da Lua"}.</span></li>
+        </ul>
+        <p class="aviso" style="margin:8px 0 0">O que você já comprou ou escreveu continua seu, com ou sem assinatura.</p>
+      </div>`}
+      <h2 class="bloco-tit">Leituras avulsas</h2>
+      <p class="sub" style="margin-bottom:10px">Compras únicas, à parte do plano. Não renovam.</p>
+      ${avulso("ano")}${avulso("nome")}
+      ${sete && sete.ativo ? `<div class="card"><div class="card-cab"><span class="mini">Avulso</span><span class="chip ouro">${e(sete.preco)}</span></div><h3>${e(sete.nome)}</h3><p class="sub" style="margin:6px 0 0">${e(sete.chamada || "")}</p></div>` : ""}
+      <div class="card"><div class="mini" style="margin-bottom:8px">Já comprou?</div><p class="sub" style="margin-bottom:10px">Entre com o e-mail da compra para abrir seus acessos neste aparelho. Se você recebeu um código, ele também vale.</p>
+        <div class="linha-btn"><button class="btn fantasma pequeno" data-ir="eu">Entrar com o e-mail</button><button class="btn fantasma pequeno" data-portal="guia">Tenho um código</button></div></div>
+      <p class="aviso center">Conteúdo simbólico, para reflexão. Não garante resultado.</p>
     </section>`;
   };
+  EXT.eventos.push(() => { document.querySelectorAll("#app .modulo").forEach(el => {
+    el.addEventListener("click", () => { if (el.dataset.cap) { const [a, v] = el.dataset.cap.split(":"); C().secao(a, v); } }, true);
+    el.addEventListener("keydown", ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); el.click(); } });
+  }); });
 
   /* ---------- Mapa Profundo ---------- */
   function reguaSVG(momentos, idade) {

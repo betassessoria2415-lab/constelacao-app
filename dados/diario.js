@@ -142,6 +142,48 @@ window.DIARIO = (function () {
       "Reserva de energia no mínimo. Descanso hoje é produtividade."
     ]
   };
+  // orientação para quem escolheu Propósito como foco: três variações por dia pessoal, mais a Lua
+  const PROPOSITO = [{
+    1: "Dia de começar pelo que tem sentido para você, mesmo pequeno. Dê o primeiro passo de algo que é seu.",
+    2: "Seu propósito hoje aparece no jeito de escutar. Pergunte a alguém do que ela precisa e ouça até o fim.",
+    3: "Mostre algo que você faz bem. Propósito guardado na gaveta não encontra quem precisa dele.",
+    4: "Propósito também é rotina. Escolha uma tarefa chata que sustenta o que você quer e termine.",
+    5: "Experimente um caminho novo para a mesma direção. Mudar o jeito não é desistir do rumo.",
+    6: "Hoje o sentido está em cuidar. Faça por alguém o que você gostaria que fizessem por você.",
+    7: "Dia de pergunta, não de resposta. Reserve dez minutos em silêncio para o que anda pedindo atenção.",
+    8: "Assuma uma decisão que você vem adiando. Direção se confirma quando alguém se compromete.",
+    9: "Encerre algo que já cumpriu o papel. Abrir espaço também faz parte do caminho."
+  }, {
+    1: "Escreva em uma linha o que você quer construir neste ano. Uma linha basta para hoje.",
+    2: "Procure quem caminha na mesma direção. Uma conversa hoje vale mais do que um plano sozinha.",
+    3: "Conte para alguém o que você sonha fazer. Dizer em voz alta deixa o sonho mais nítido.",
+    4: "Organize o lugar onde você trabalha no que importa. Ordem por fora ajuda a ver por dentro.",
+    5: "Diga sim a um convite diferente. Às vezes a direção aparece fora do roteiro.",
+    6: "Pergunte a quem você ama o que ela vê de melhor em você. Anote a resposta.",
+    7: "Leia uma página de algo que alimenta você. Estudo também é prática de propósito.",
+    8: "Coloque valor no que você faz bem. Cobrar com justiça é respeitar o seu dom.",
+    9: "Olhe para trás e reconheça um caminho que você já percorreu. Ele mostra do que você é capaz."
+  }, {
+    1: "Faça hoje uma coisa só porque ela tem a sua cara. Sem pedir licença.",
+    2: "Ajude sem aparecer. Propósito não precisa de plateia para valer.",
+    3: "Crie algo com as mãos ou com as palavras. O que você expressa mostra quem você é.",
+    4: "Cumpra o combinado de hoje com você mesma. Confiança em si se constrói em dia comum.",
+    5: "Repare no que despertou a sua curiosidade nesta semana. Ali tem uma pista.",
+    6: "Arrume um espaço da casa para a sua prática. Um canto seu lembra o que importa.",
+    7: "Desligue uma tela e escute o que você pensa de verdade sobre a sua vida.",
+    8: "Dê um passo concreto na direção do que você quer: um orçamento, um contato, um prazo.",
+    9: "Agradeça a alguém que ajudou você a chegar até aqui. Gratidão também aponta direção."
+  }];
+  const LUA_PROPOSITO = [
+    "Lua Nova: escreva uma intenção de direção para este ciclo.",
+    "A Lua cresce: dê o primeiro passo visível.",
+    "Quarto Crescente: escolha entre duas opções e siga.",
+    "Lua quase cheia: ajuste o que está quase pronto.",
+    "Lua Cheia: reconheça o que já floresceu no seu caminho.",
+    "A Lua começa a minguar: compartilhe o que você aprendeu.",
+    "Quarto Minguante: solte um compromisso que não tem mais a ver com você.",
+    "Lua escura: descanse. Clareza de direção nasce do silêncio."
+  ];
   // regente planetário do dia da semana (tradição caldeia)
   const SEMANA = [
     { planeta: "Sol", simbolo: "☉", frase: "Domingo é do Sol: dia de brilho, descanso digno e planos para a semana." },
@@ -205,6 +247,7 @@ window.DIARIO = (function () {
       dinheiro: B.dinheiro[diaPessoal] + " " + LUA.dinheiro[faseIdx],
       amor: B.amor[diaPessoal] + " " + LUA.amor[faseIdx],
       energia: B.energia[diaPessoal] + " " + LUA.energia[faseIdx],
+      proposito: PROPOSITO[Math.floor(doAno / 9) % 3][diaPessoal] + " " + LUA_PROPOSITO[faseIdx],
       semana: sem, toque: TOQUE[destino] || TOQUE[1], numeroPoder: poder, horaPoder: hora
     };
   }
@@ -218,5 +261,8 @@ window.DIARIO = (function () {
     return Object.assign({ n: i + 1 }, CARTAS[i]);
   }
 
-  return { orientacao, cartaDoDia, CARTAS, SEMANA };
+  // área da orientação que corresponde ao foco escolhido no perfil
+  const AREAS = [["dinheiro", "◈", "Dinheiro"], ["amor", "♡", "Amor e relações"], ["energia", "ϟ", "Energia"], ["proposito", "✧", "Propósito"]];
+  const areaDoFoco = foco => ({ dinheiro: "dinheiro", amor: "amor", paz: "energia", proposito: "proposito" }[foco] || "dinheiro");
+  return { orientacao, cartaDoDia, CARTAS, SEMANA, AREAS, areaDoFoco };
 })();

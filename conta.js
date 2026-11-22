@@ -69,16 +69,19 @@ window.CONTA = (function () {
     const linhas = await req("/rest/v1/direitos?select=portal,valido_ate,ativo", { headers: { Authorization: "Bearer " + tok } });
     const d = {}; (linhas || []).forEach(l => { if (l.ativo) d[l.portal] = l.valido_ate || "vitalicio"; });
     const S = C.S; S.direitos = d; S.direitosEm = Date.now(); S.contaEmail = sessao.email || "";
-    if (d.base && valido(d.base)) { if (!S.acesso) S.acessoPor = "conta"; S.acesso = true; }
-    else if (S.acessoPor === "conta") S.acesso = false;          // compra base reembolsada ou vencida
+    // entra quem tem qualquer direito de plano em dia (Essencial, Plus ou Completo), mesmo que o
+    // servidor não mande a linha "base" junto: a regra está em NUCLEO.acessoPorDireitos
+    if (window.NUCLEO.acessoPorDireitos(d).entra) { if (!S.acesso) S.acessoPor = "conta"; S.acesso = true; }
+    else if (S.acessoPor === "conta") S.acesso = false;          // plano reembolsado ou vencido (só depois de o servidor responder)
+    if (S.pagamento && window.NUCLEO.temDireito(d, S.pagamento.portal)) S.pagamento = null;
     C.salvar();
     return true;
   }
   function direito(id) {
     const C = window.CDA; if (!C || !C.S) return false;
-    const S = C.S, v = (S.direitos || {})[id];
-    if (!v || Date.now() - (S.direitosEm || 0) > VALIDADE_OFFLINE) return false;
-    return valido(v);
+    const S = C.S;
+    if (Date.now() - (S.direitosEm || 0) > VALIDADE_OFFLINE) return false;
+    return window.NUCLEO.temDireito(S.direitos, id);
   }
   function sair() {
     const C = window.CDA; gravar(null);
