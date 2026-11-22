@@ -66,6 +66,8 @@ window.GUIA_APP = (function () {
     if (concluida()) return telaCompleta();
     const et = etapaAtual(), dias = diasComPratica(et), alvo = GUIA.praticasPorEtapa, idHoje = praticaDeHoje(et), ok = pronta(et);
     const desejo = (t.campos.desejo || "").trim();
+    const sc = c.secoes("guia", [["etapa", "Etapa " + et.n], ["caminho", "O caminho"], ["apoio", "Apoio"]]);
+    const apoio = (sub, ic, tit, txt) => `<div class="card clique" data-ir="guia" data-sub='"${sub}"'><div class="card-cab"><span class="portal-ic">${ic}</span><span class="chip">abrir ›</span></div><h3>${tit}</h3><p class="sub" style="margin:6px 0 0">${txt}</p></div>`;
     const corpo = !liberada(et.n) ? PREMIUM.cadeado("guia", `<p>${e(et.ensino)}</p><p>${e(et.aplicar)}</p>`, `As etapas ${et.n} a 7: ${GUIA.ETAPAS.slice(et.n - 1).map(x => x.fase.toLowerCase()).join(", ")}.`) : `
         <p>${e(et.ensino)}</p>
         <div class="area"><div class="ic">➶</div><div><div class="mini">O que você faz nesta etapa</div><p>${e(et.aplicar)}</p></div></div>
@@ -79,21 +81,32 @@ window.GUIA_APP = (function () {
         ${ok ? `<button class="btn primario" id="g-concluir" style="margin-top:8px">${et.n < 7 ? "Concluir a etapa " + et.n + " e abrir a próxima ✦" : "Fechar o ciclo de manifestação ✦"}</button>` : `<p class="aviso center" style="margin-top:10px">A próxima etapa abre quando o marco e os ${alvo} dias de prática estiverem cumpridos.</p>`}`;
     return `<section class="pagina">
       ${c.topo("Guia de Manifestação")}
-      <h1>Do desejo à manifestação</h1>
-      <p class="sub">Sete etapas, uma para cada princípio hermético. Cada uma prepara a seguinte.</p>
+      ${sc.html}
+      ${sc.at === "etapa" ? `<div class="sec-corpo">
+      <h1>${e(et.fase)}</h1>
+      <p class="sub">Etapa ${et.n} de 7 da sua trajetória, do desejo à manifestação.</p>
       ${desejo ? `<div class="card ouro-b"><span class="brilho o"></span><div class="mini" style="margin-bottom:6px">O que você está manifestando${t.ciclo > 1 ? " · ciclo " + t.ciclo : ""}</div><p class="freq" style="font-size:19px">“${e(desejo)}${(t.campos.prazo || "").trim() ? ", " + e(t.campos.prazo.trim()) : ""}”</p></div>` : ""}
-      <div class="card">${trilha()}</div>
       <div class="card neon"><span class="brilho v"></span>
         <div class="card-cab"><span class="mini">Etapa ${et.n} de 7 · princípio: ${e(et.principio)}</span><span class="chip violeta">${e(et.fase)}</span></div>
         <p class="freq">“${e(et.axioma)}”</p>
         <p class="aviso" style="margin:4px 0 12px">O Caibalion, 1908</p>
         ${corpo}
       </div>
-      <div class="grade3">
-        <button class="btn fantasma pequeno" data-ir="guia" data-sub='"resgate"'>Resgate</button>
-        <button class="btn fantasma pequeno" data-ir="guia" data-sub='"dicionario"'>Dicionário</button>
-        <button class="btn fantasma pequeno" data-ir="guia" data-sub='"fontes"'>Fontes</button>
+      </div>` : sc.at === "caminho" ? `<div class="sec-corpo">
+      <h1>Do desejo à manifestação</h1>
+      <p class="sub">Sete etapas, uma para cada princípio hermético. Cada uma prepara a seguinte.</p>
+      <div class="card">${trilha()}</div>
+      <div class="card"><div class="mini" style="margin-bottom:8px">Como uma etapa se cumpre</div>
+        <ul class="lista"><li><span class="ic">1</span><span>Leia o princípio e o que ele pede de você.</span></li><li><span class="ic">2</span><span>Cumpra o marco da etapa.</span></li><li><span class="ic">3</span><span>Faça uma prática em ${alvo} dias diferentes.</span></li></ul>
+        ${c.S.ciclosFeitos.length ? `<div class="sep"></div><div class="mini" style="margin-bottom:6px">Ciclos anteriores</div>${c.S.ciclosFeitos.map(x => `<div class="evento"><div class="d" style="font-size:18px">✓</div><div><div>${e(x.desejo)}</div><div class="aviso">${c.fmtCurta(x.inicio)} a ${c.fmtCurta(x.fim)}</div></div></div>`).join("")}` : ""}
       </div>
+      </div>` : `<div class="sec-corpo">
+      <h1>Para os dias difíceis e as dúvidas</h1>
+      <p class="sub">Três apoios que valem em qualquer etapa.</p>
+      ${apoio("resgate", "ϟ", "Resgate de frequência", "A energia caiu? Exercícios curtos para subir um degrau agora.")}
+      ${apoio("dicionario", "✎", "Dicionário da manifestação", "Vibração, frequência, cocriação: o que cada termo quer dizer e o que fazer com ele hoje.")}
+      ${apoio("fontes", "❦", "As fontes", "De que autor, escola ou documento vem cada prática deste guia.")}
+      </div>`}
       <p class="aviso center" style="margin-top:14px">Práticas de desenvolvimento pessoal. Mostram o que fazer a cada dia; não garantem resultado.</p>
     </section>`;
   };
@@ -206,5 +219,11 @@ window.GUIA_APP = (function () {
     };
   });
 
-  return { cardHoje, afirmacaoDoDia, etapaAtual, concluida };
+  // o que a trajetória pede hoje (usado pela Estela e pela tela Hoje)
+  function estadoHoje() {
+    T(); if (concluida()) return { concluida: true, liberada: true, feita: true };
+    const et = etapaAtual(), id = praticaDeHoje(et);
+    return { concluida: false, et, id, tecnica: GUIA.TECNICAS[id], feita: feitaHoje(id), liberada: !!liberada(et.n) };
+  }
+  return { cardHoje, afirmacaoDoDia, etapaAtual, concluida, estadoHoje };
 })();

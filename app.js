@@ -29,7 +29,7 @@
   function toast(msg) { toastEl.textContent = msg; toastEl.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => toastEl.classList.remove("on"), 2600); }
 
   /* ---------- estado ---------- */
-  const padrao = () => ({ perfil: null, estrelas: {}, dias: {}, presencas: {}, sinais: [], melhorSeq: 0, luas: {}, pessoas: [], mesVisto: "", portais: {}, direitos: {}, direitosEm: 0, contaEmail: "", acessoPor: "", foco: "", genero: "f", nascHora: "", nascCidade: "", encerramento: {}, passos: {}, acesso: false, criadoEm: new Date().toISOString() });
+  const padrao = () => ({ perfil: null, tour: false, dicas: {}, estrelas: {}, dias: {}, presencas: {}, sinais: [], melhorSeq: 0, luas: {}, pessoas: [], mesVisto: "", portais: {}, direitos: {}, direitosEm: 0, contaEmail: "", acessoPor: "", foco: "", genero: "f", nascHora: "", nascCidade: "", encerramento: {}, passos: {}, acesso: false, criadoEm: new Date().toISOString() });
   let S = padrao();
   function carregar() {
     try { const raw = localStorage.getItem(CONFIG.chave); if (raw) S = Object.assign(padrao(), JSON.parse(raw)); }
@@ -74,7 +74,7 @@
   let rota = { aba: "hoje", sub: null };
   function ir(aba, sub = null, voltar = false) {
     const atual = $(".pagina");
-    const troca = () => { rota = { aba, sub }; render(); window.scrollTo({ top: 0, behavior: "instant" }); };
+    const troca = () => { if (aba !== rota.aba) delete secSel[aba]; rota = { aba, sub }; render(); window.scrollTo({ top: 0, behavior: "instant" }); };
     if (atual && !voltar) { atual.classList.add("saindo"); setTimeout(troca, 180); } else troca();
   }
   tabs.addEventListener("click", e => { const b = e.target.closest(".tab"); if (b) ir(b.dataset.aba); });
@@ -131,8 +131,9 @@
   function render(semAnim) {
     if (CONFIG.codigoAcesso && !S.acesso) { tabs.classList.add("oculto"); app.innerHTML = telaAcesso(); ligarAcesso(); return; }
     if (!S.perfil) { tabs.classList.add("oculto"); app.innerHTML = telaOnboarding(); ligarOnboarding(); return; }
-    tabs.classList.remove("oculto"); marcarTab();
     const M = mapa(S.perfil);
+    if (!S.tour) { tabs.classList.add("oculto"); app.innerHTML = ESTELA.tour(M); if (S.genero === "m") masculinizar(app); ESTELA.ligarTour(); return; }
+    tabs.classList.remove("oculto"); marcarTab();
     let html = "";
     const EXT = window.CDA_EXT || { telas: {}, eventos: [] }, chaveExt = rota.aba + "/" + (typeof rota.sub === "string" ? rota.sub : "");
     if (EXT.telas[chaveExt]) html = EXT.telas[chaveExt](M);
@@ -142,7 +143,10 @@
     else if (rota.aba === "ceu") html = telaCeu(M);
     else if (rota.aba === "eu") html = telaEu(M);
     app.innerHTML = html;
+    if (!rota.sub) { const dc = ESTELA.dica(rota.aba), tp = $(".pagina > .topo"); if (dc && tp) tp.insertAdjacentHTML("afterend", dc); }
     if (semAnim) { const p = $(".pagina"); if (p) p.style.animation = "none"; }
+    if (secMudou) { const p = $(".pagina"); if (p) p.classList.add("troca"); secMudou = false; }
+    if (!semAnim) efeitos();
     if (S.genero === "m") masculinizar(app);
     ligarEventos(M);
   }
@@ -163,6 +167,12 @@
   const topo = (titulo, extra = "") => `<header class="topo"><div><div class="marca">☾ ${esc(CONFIG.nomeMarca)}</div>${titulo ? `<div class="data">${titulo}</div>` : ""}</div><div class="topo-dir">${extra}<button class="perfil-btn" data-ir="eu" aria-label="Meu perfil">${esc(((S.perfil && S.perfil.nome) || "?").trim()[0].toUpperCase())}</button></div></header>`;
   const voltar = (aba, sub = null) => `<button class="voltar" data-ir="${aba}" ${sub ? `data-sub='${JSON.stringify(sub)}'` : ""}>‹ Voltar</button>`;
   const chips = (arr, cls = "") => arr.map(x => `<span class="chip ${cls}">${esc(x)}</span>`).join(" ");
+  // capítulos de uma aba: [[id, rótulo], ...]; devolve o capítulo aberto e a barra de botões
+  const secSel = {}; let secMudou = false;
+  function secoes(aba, lista) {
+    const at = secSel[aba] === "tudo" ? "tudo" : lista.some(x => x[0] === secSel[aba]) ? secSel[aba] : lista[0][0];
+    return { at, html: `<div class="secoes" role="tablist">${lista.map(x => `<button class="secao ${x[0] === at ? "on" : ""}" data-sec="${aba}:${x[0]}" role="tab" aria-selected="${x[0] === at}">${esc(x[1])}</button>`).join("")}</div>` };
+  }
   const barra = pct => `<div class="barra"><div style="width:${pct}%"></div></div>`;
 
   function saudacao() { const h = new Date().getHours(); return h < 6 ? "Boa madrugada" : h < 12 ? "Bom dia" : h < 18 ? "Boa tarde" : "Boa noite"; }
@@ -240,7 +250,7 @@
       if (!nasc) return toast("Escolha sua data de nascimento.");
       S.perfil = { nome, nascimento: nasc };
       const fEl = app.querySelector("[data-foco].on"); S.foco = fEl ? fEl.dataset.foco : "dinheiro"; S.genero = $("#genero").value; S.criadoEm = S.criadoEm || new Date().toISOString(); salvar();
-      telaCalculando(() => { rota = { aba: "mapa", sub: null }; render(); });
+      telaCalculando(() => { rota = { aba: "hoje", sub: null }; render(); });
     };
   }
   function telaCalculando(fim) {
@@ -250,19 +260,24 @@
     const t = setInterval(() => { el.textContent = passos[i]; el.style.animation = "none"; void el.offsetWidth; el.style.animation = ""; i++; if (i > passos.length) { clearInterval(t); fim(); } }, 650);
   }
 
+  let momentoSel = "receber", momentoDia = "";   // parte do dia aberta na tela Hoje: receber | praticar | fechar
   function telaHoje(M) {
     const d = new Date(), k = hojeKey(d), dia = S.dias[k] || {};
     const c = NUM.CICLO[M.diaPessoal];
-    const nivel = dia.nivel || 0;
+    const nivel = dia.nivel || 0, GH = GUIA_APP.estadoHoje();
+    if (momentoDia !== k) { momentoDia = k; momentoSel = !dia.carta ? "receber" : (!GH.feita && GH.liberada && !GH.concluida) || !nivel ? "praticar" : "fechar"; }
+    const mo = momentoSel;
     const faixa = nivel ? (nivel <= 7 ? "alto" : nivel <= 14 ? "medio" : "baixo") : null;
     const O = M.orient, K = M.carta, seq = sequencia(), lemb = lembranca(), nProvas = provas().length;
     const semana = [6, 5, 4, 3, 2, 1, 0].map(i => { const dt = diaMenos(i); return `<div class="dia-ponto ${S.presencas[hojeKey(dt)] ? "on" : ""} ${i === 0 ? "hoje" : ""}"><i></i>${"DSTQQSS"[dt.getDay()]}</div>`; }).join("");
     return `<section class="pagina">
       ${topo(fmtData(d), `<span class="chip ouro seq" id="seq">✦ ${seq} ${seq === 1 ? "noite" : "noites"}</span>`)}
       <h1>${saudacao()}, ${esc(primeiroNome())}.</h1>
-      <p class="sub">Esta é a sua orientação para hoje.</p>
+      ${ESTELA.falaHoje({ carta: !!dia.carta, nivel, noite: !!dia.noite, momento: mo })}
       <div class="semana">${semana}</div>
+      <div class="momentos" role="tablist">${[["receber", "Receber", "carta e orientação", !!dia.carta], ["praticar", "Praticar", "técnica e energia", GH.feita && nivel > 0], ["fechar", "Fechar o dia", "frequência e sinais", !!dia.noite]].map((x, i) => `<button class="momento ${mo === x[0] ? "on" : ""} ${x[3] ? "ok" : ""}" data-momento="${x[0]}" role="tab" aria-selected="${mo === x[0]}"><i>${x[3] ? "✓" : i + 1}</i><b>${x[1]}</b><small>${x[2]}</small></button>`).join("")}</div>
 
+      <div class="sec-corpo">${mo === "receber" ? `
       <div class="carta ${dia.carta ? "virada" : ""}" id="carta" role="button" tabindex="0" aria-label="Carta do dia">
         <div class="carta-in">
           <div class="face frente"><div class="selo">✦</div><h3>Sua carta de hoje</h3><p class="sub" style="margin:6px 0 0">Respire fundo, pense no seu dia e toque para revelar.</p><span class="chip violeta" style="margin-top:14px">uma carta por dia</span></div>
@@ -277,17 +292,6 @@
 
       ${dia.carta ? (dia.carta2 ? (() => { const K2 = DIARIO.cartaDoDia(S.perfil.nome + "#2", d); return `<div class="card"><div class="card-cab"><span class="mini">Segunda carta · conselho</span><span class="chip ouro">${esc(K2.arcano)}</span></div><div style="display:flex;gap:14px;align-items:center"><div class="hebraica" style="font-size:44px;line-height:1">${K2.letra}</div><div><h3>${esc(K2.nome)}</h3><p style="margin:4px 0 0">${esc(K2.msg)}</p></div></div></div>`; })()
         : `<button class="btn fantasma pequeno" ${clube() ? 'id="carta2"' : 'data-portal="clube"'} style="width:100%;margin:-4px 0 14px">✦ Tirar uma segunda carta ${clube() ? "" : "· Clube"}</button>`) : ""}
-      ${GUIA_APP.cardHoje()}
-
-      ${d.getMonth() >= 9 ? `<div class="card clique ouro-b" data-ir="ceu" data-sub='"ano"'><div class="card-cab"><span class="mini">Reta final do ano</span><span class="chip ouro">ano pessoal ${M.anoPessoalProx}</span></div><h3>Sua Previsão ${d.getFullYear() + 1} está pronta</h3><p class="sub" style="margin:6px 0 0">${esc(NUM.CICLO[M.anoPessoalProx].tema)}: veja o que o próximo ano pede de você ›</p></div>` : ""}
-
-      ${lemb ? `<div class="card ouro-b" id="lembranca"><span class="brilho o"></span>
-        <div class="card-cab"><span class="mini">Há ${lemb.dias} dias você desejou</span></div>
-        <p class="freq" style="font-size:19px">“${esc(lemb.desejo)}”</p>
-        <p class="sub" style="margin-bottom:10px">Aconteceu?</p>
-        <div class="linha-btn"><button class="btn primario pequeno" data-res="sim" data-k="${lemb.k}">Sim ✦</button><button class="btn fantasma pequeno" data-res="parte" data-k="${lemb.k}">Em parte</button><button class="btn fantasma pequeno" data-res="nao" data-k="${lemb.k}">Ainda não</button></div>
-      </div>` : ""}
-
       <div class="card neon"><span class="brilho v"></span>
         <div class="card-cab"><span class="mini">Seu dia pessoal</span><span class="chip ouro">Dia universal ${M.diaUniversal}</span></div>
         <div class="num-hero"><div class="num-grande">${M.diaPessoal}</div><div><h2>${esc(c.palavra)}</h2><p class="sub" style="margin:4px 0 0">${esc(c.resumo)}</p></div></div>
@@ -307,7 +311,6 @@
         <div class="sep"></div>
         <div style="display:flex;align-items:center;gap:10px"><i style="width:18px;height:18px;border-radius:50%;background:${c.cor};box-shadow:0 0 12px ${c.cor}"></i><span class="sub">Cor do dia para vestir ou ter por perto</span></div>
       </div>
-
       ${(() => {
         const sem = diasPessoais(M, d, 7), fut = sem.slice(1), am = sem[1];
         const bd = melhor(fut, "dinheiro"), ba = melhor(fut, "amor"), bp = melhor(fut, "pausa");
@@ -325,20 +328,24 @@
           <button class="btn ${mesNovo ? "primario" : "fantasma"} pequeno" data-ir="hoje" data-sub='"mes"' style="width:100%;margin-top:12px">${mesNovo ? "✦ Sua previsão de " + MESES[d.getMonth()] + " chegou" : "Previsão de " + MESES[d.getMonth()] + " ›"}</button>
         </div>`;
       })()}
-
-      <div class="card ouro-b"><span class="brilho o"></span>
-        <div class="mini" style="margin-bottom:8px">Frequência da noite</div>
-        <p class="freq">“${esc(M.freqNoite.freq)}”</p>
-        <p class="aviso">Repita mentalmente ao deitar. Que o último pensamento do dia seja sobre o que você deseja, não sobre o que teme.</p>
+      ${d.getMonth() >= 9 ? `<div class="card clique ouro-b" data-ir="ceu" data-sub='"ano"'><div class="card-cab"><span class="mini">Reta final do ano</span><span class="chip ouro">ano pessoal ${M.anoPessoalProx}</span></div><h3>Sua Previsão ${d.getFullYear() + 1} está pronta</h3><p class="sub" style="margin:6px 0 0">${esc(NUM.CICLO[M.anoPessoalProx].tema)}: veja o que o próximo ano pede de você ›</p></div>` : ""}
+      <div class="card clique" data-ir="ceu">
+        <div class="card-cab"><span class="mini">Lua agora</span><span class="chip">${M.lua.iluminacao}% iluminada</span></div>
+        <div style="display:flex;gap:14px;align-items:center"><div class="lua-ic">${M.lua.icone}</div><div><h3>${esc(M.lua.nome)}</h3><p class="sub" style="margin:2px 0 0">${esc(M.lua.intencao)}</p></div></div>
       </div>
-
+      <div class="card">
+        <div class="card-cab"><span class="mini">Nome sagrado do dia</span><span class="chip violeta">${M.nome72.n} de 72</span></div>
+        <div style="display:flex;gap:16px;align-items:center"><div class="hebraica" style="font-size:40px" dir="rtl">${M.nome72.letras}</div><div><h3>${esc(M.nome72.intencao)}</h3><p class="sub" style="margin:2px 0 0">Olhe para as letras por 30 segundos, da direita para a esquerda, respirando devagar. Não precisa pronunciar: a tradição diz que a forma já comunica.</p></div></div>
+      </div>
+      <button class="btn fantasma" data-momento="praticar" style="margin-bottom:14px">Seguir para a prática de hoje ›</button>
+      ` : mo === "praticar" ? `
+      ${GUIA_APP.cardHoje()}
       <div class="card">
         <div class="card-cab"><span class="mini">Check-in de energia</span>${nivel ? `<span class="chip violeta">nível ${nivel} de 22</span>` : ""}</div>
         <p class="sub" style="margin-bottom:10px">Como você está se sentindo agora? Na lei da atração, o sentimento mostra a frequência que você emite.</p>
         <select id="nivel"><option value="0">Escolher…</option>${KABALA.ESCALA.map(e => `<option value="${e.nivel}" ${e.nivel === nivel ? "selected" : ""}>${e.nivel}. ${esc(e.nome)}</option>`).join("")}</select>
         ${faixa ? `<p style="margin-top:12px">${esc(KABALA.SUBIDA[faixa])}</p>${faixa !== "alto" ? `<button class="btn neon pequeno" data-ir="guia" data-sub='"resgate"' style="width:100%">Fazer um resgate de frequência agora ›</button>` : ""}` : ""}
       </div>
-
       <div class="card">
         <div class="mini" style="margin-bottom:8px">Intenção de hoje · método WOOP</div>
         <p class="sub" style="margin-bottom:10px">Desejo, obstáculo e plano. Pesquisas de Gabriele Oettingen mostram que imaginar o obstáculo junto do desejo é o que faz a intenção virar ação.</p>
@@ -348,25 +355,28 @@
         <span class="salvo" id="salvo-dia">salvo ✓</span>
         <p class="aviso" style="margin:6px 0 0">Daqui a 7 dias o app pergunta se aconteceu.</p>
       </div>
-
+      <button class="btn fantasma" data-momento="fechar" style="margin-bottom:14px">Seguir para fechar o dia ›</button>
+      ` : `
+      <div class="card ouro-b"><span class="brilho o"></span>
+        <div class="mini" style="margin-bottom:8px">Frequência da noite</div>
+        <p class="freq">“${esc(M.freqNoite.freq)}”</p>
+        <p class="aviso">Repita mentalmente ao deitar. Que o último pensamento do dia seja sobre o que você deseja, não sobre o que teme.</p>
+        ${dia.noite ? `<button class="btn feito" disabled style="margin-top:6px">✓ Dia fechado</button>` : `<button class="btn primario" id="fechar-dia" style="margin-top:6px">Repeti minha frequência · fechar o dia ✦</button>`}
+      </div>
+      ${lemb ? `<div class="card ouro-b" id="lembranca"><span class="brilho o"></span>
+        <div class="card-cab"><span class="mini">Há ${lemb.dias} dias você desejou</span></div>
+        <p class="freq" style="font-size:19px">“${esc(lemb.desejo)}”</p>
+        <p class="sub" style="margin-bottom:10px">Aconteceu?</p>
+        <div class="linha-btn"><button class="btn primario pequeno" data-res="sim" data-k="${lemb.k}">Sim ✦</button><button class="btn fantasma pequeno" data-res="parte" data-k="${lemb.k}">Em parte</button><button class="btn fantasma pequeno" data-res="nao" data-k="${lemb.k}">Ainda não</button></div>
+      </div>` : ""}
       <div class="card">
         <div class="card-cab"><span class="mini">Sinais e conquistas</span><span class="chip verde">${nProvas} ${nProvas === 1 ? "prova" : "provas"}</span></div>
         <p class="sub" style="margin-bottom:10px">Percebeu um sinal hoje? Um desconto, uma ajuda, uma ideia, um número repetido. Registrar treina o olhar para a abundância.</p>
         <div style="display:flex;gap:8px"><input id="sinal" placeholder="Ex.: recebi um Pix que não esperava" maxlength="160"><button class="btn primario pequeno" id="sinal-ok" style="flex:0 0 auto">Guardar</button></div>
         <button class="btn fantasma pequeno" data-ir="hoje" data-sub='"provas"' style="margin-top:10px;width:100%">Ver meu caderno de provas ›</button>
       </div>
-
-      <div class="card clique" data-ir="ceu">
-        <div class="card-cab"><span class="mini">Lua agora</span><span class="chip">${M.lua.iluminacao}% iluminada</span></div>
-        <div style="display:flex;gap:14px;align-items:center"><div class="lua-ic">${M.lua.icone}</div><div><h3>${esc(M.lua.nome)}</h3><p class="sub" style="margin:2px 0 0">${esc(M.lua.intencao)}</p></div></div>
-      </div>
-
-      <div class="card">
-        <div class="card-cab"><span class="mini">Nome sagrado do dia</span><span class="chip violeta">${M.nome72.n} de 72</span></div>
-        <div style="display:flex;gap:16px;align-items:center"><div class="hebraica" style="font-size:40px" dir="rtl">${M.nome72.letras}</div><div><h3>${esc(M.nome72.intencao)}</h3><p class="sub" style="margin:2px 0 0">Olhe para as letras por 30 segundos, da direita para a esquerda, respirando devagar. Não precisa pronunciar: a tradição diz que a forma já comunica.</p></div></div>
-      </div>
-
       <button class="btn neon" id="compartilhar">Compartilhar minha energia de hoje ✦</button>
+      `}</div>
       <p class="aviso center" style="margin-top:14px">Orientação simbólica para reflexão. Não substitui aconselhamento financeiro, psicológico ou médico.</p>
     </section>`;
   }
@@ -488,9 +498,12 @@
 
   function telaMapa(M) {
     const sig = NUM.SIGNIFICADOS[M.destino], sef = KABALA.sefiraDe(M.destino), sefE = KABALA.sefiraDe(M.expressao);
+    const sc = secoes("mapa", [["essencia", "Essência"], ["nome", "Meu nome"], ["momento", "Meu momento"]]), tudo = sc.at === "tudo";
     const bloco = (rot, n, desc) => { const s = NUM.SIGNIFICADOS[n]; return `<div class="card" style="margin:0"><div class="mini">${rot}</div><div style="display:flex;align-items:baseline;gap:10px;margin:6px 0 4px"><span class="num-medio">${n}</span><b>${esc(s.nome)}</b></div><p class="sub" style="margin:0;font-size:13.5px">${esc(desc)}</p></div>`; };
     return `<section class="pagina">
       ${topo("Seu mapa cabalístico")}
+      ${sc.html}
+      ${sc.at === "essencia" || tudo ? `<div class="sec-corpo">
       <h1>${esc(S.perfil.nome.split(" ")[0])}, seu número de destino é</h1>
       <div class="card neon" style="margin-top:14px"><span class="brilho v"></span><span class="brilho o"></span>
         <div class="num-hero"><div class="anel"><div class="num-grande" style="font-size:64px;min-width:0">${M.destino}</div></div><div><h2>${esc(sig.nome)}</h2><p class="sub" style="margin:4px 0 8px">Sefirá <b>${esc(sef.nome)}</b> · ${esc(sef.pt)}</p><div class="hebraica">${esc(sig.hebraica)}</div></div></div>
@@ -507,29 +520,27 @@
         <div class="mini" style="margin-bottom:6px">Luz</div>${chips(sig.luz, "ouro")}
         <div class="mini" style="margin:10px 0 6px">Sombra a observar</div>${chips(sig.sombra)}
       </div>
-
       <div class="card ouro-b"><div class="mini" style="margin-bottom:8px">Sua frequência pessoal</div><p class="freq">“${esc(sig.frequencia)}”</p></div>
-
       ${(() => { const L = COMBOS.ler(M.destino, M.expressao, M.motivacao); return `<div class="card clique neon" data-ir="mapa" data-sub='"profundo"'><span class="brilho r"></span>
         <div class="card-cab"><span class="mini">Como seus números conversam</span><span class="chip violeta">${M.destino} · ${M.expressao} · ${M.motivacao}</span></div>
         <ul class="lista">${L.resumo.map(t => `<li><span class="ic">✦</span><span>${esc(t)}</span></li>`).join("")}</ul>
         <button class="btn primario pequeno" style="width:100%;margin-top:10px" data-ir="mapa" data-sub='"profundo"'>Abrir meu Mapa Profundo ›</button></div>`; })()}
-
-      <h2 style="margin:22px 0 12px">Os quatro pilares do seu nome</h2>
+      </div>` : ""}
+      ${sc.at === "nome" || tudo ? `<div class="sec-corpo">
+      <h1>O que o seu nome carrega</h1>
+      <p class="sub">Cada letra tem um valor. Somadas, mostram quatro lados seus.</p>
       <div class="grade2" style="margin-bottom:14px">
         ${bloco("Expressão · quem você é", M.expressao, "A soma de todas as letras: seus talentos naturais.")}
         ${bloco("Motivação · o que sua alma quer", M.motivacao, "A soma das vogais: o desejo íntimo que move suas escolhas.")}
         ${bloco("Impressão · como te veem", M.impressao, "A soma das consoantes: a primeira imagem que você passa.")}
         ${bloco("Dia natal · seu dom", M.dia, "O dia em que nasceu: um talento específico para o seu caminho.")}
       </div>
-
       <div class="card">
         <div class="card-cab"><span class="mini">Gematria do seu nome</span><span class="chip">tabela cabalística 1 a 8</span></div>
         <div class="letras">${S.perfil.nome.trim().split(/\s+/).map(w => NUM.letras(w).map(x => `<span class="${x.vogal ? "vogal" : ""}">${esc(x.l)}<small>${x.v}</small></span>`).join("")).join('<span class="esp"></span>')}</div>
         <p class="aviso" style="margin-top:10px">Vogais em violeta formam a Motivação; consoantes, a Impressão. Tudo junto, a Expressão. Acentos somam valor: agudo +2, til +3, circunflexo +7.</p>
         <button class="btn fantasma pequeno" style="width:100%" data-ir="mapa" data-sub='"nome"'>Nome de Poder: assinatura, negócio e bebê ›</button>
       </div>
-
       <div class="card">
         <div class="card-cab"><span class="mini">Sua posição na Árvore da Vida</span></div>
         ${arvoreSVG([sef.n === 11 ? 11 : sef.n, sefE.n === 11 ? 11 : sefE.n])}
@@ -538,14 +549,17 @@
           <div><div class="mini">Expressão</div><b>${esc(sefE.nome)}</b><div class="sub" style="font-size:13px">${esc(sefE.pt)} · ${esc(sefE.planeta)} · virtude: ${esc(sefE.virtude)}</div></div>
         </div>
       </div>
-
+      ${M.carmicas.length ? `<div class="card"><div class="mini" style="margin-bottom:8px">Lições cármicas</div>${M.carmicas.map(c => `<p><b>${c.n}</b> ${esc(c.onde)}: ${esc(c.t)}</p>`).join("")}</div>` : ""}
+      </div>` : ""}
+      ${sc.at === "momento" || tudo ? `<div class="sec-corpo">
+      <h1>O seu momento</h1>
+      <p class="sub">O signo, o ano que você está vivendo e quem caminha ao seu lado.</p>
       <div class="card">
         <div class="card-cab"><span class="mini">Seu signo solar</span><span class="chip">${M.signo.simbolo} ${esc(M.signo.elemento)}</span></div>
         <h3>${esc(M.signo.nome)} <span class="sub" style="font-weight:400">· regido por ${esc(M.signo.regente)}</span></h3>
         <p style="margin:8px 0">${esc(M.signo.prosp)}</p>${chips(M.signo.palavras, "violeta")}
         <button class="btn fantasma pequeno" style="width:100%;margin-top:12px" data-ir="mapa" data-sub='"lua"'>Seu Sol é só um terço: ver Lua e Ascendente ›</button>
       </div>
-
       <div class="card">
         <div class="card-cab"><span class="mini">Seus ciclos</span></div>
         <div class="grade3">
@@ -556,14 +570,12 @@
         <div class="sep"></div>
         <p>${esc(NUM.CICLO[M.anoPessoal].ano)}</p>
       </div>
-
-      ${M.carmicas.length ? `<div class="card"><div class="mini" style="margin-bottom:8px">Lições cármicas</div>${M.carmicas.map(c => `<p><b>${c.n}</b> ${esc(c.onde)}: ${esc(c.t)}</p>`).join("")}</div>` : ""}
-
       <div class="card clique neon" data-ir="mapa" data-sub='"compat"'><span class="brilho r"></span>
         <div class="card-cab"><span class="mini">Compatibilidade</span><span class="chip violeta">${(S.pessoas || []).length} ${(S.pessoas || []).length === 1 ? "pessoa" : "pessoas"}</span></div>
         <h3>Quem caminha com você</h3>
         <p class="sub" style="margin:6px 0 0">Compare seu mapa com o do parceiro, dos filhos, de uma sócia ou do nome do seu negócio ›</p>
       </div>
+      </div>` : ""}
     </section>`;
   }
 
@@ -584,21 +596,37 @@
     const corIdx = ({ 1: 3, 2: 4, 3: 1, 4: 2, 5: 7, 6: 4, 7: 6, 8: 1, 9: 0 })[apProx];
     const corV = ASTROS.VIRADA.cores[corIdx];
     const univ = NUM.anoUniversal(anoV);
+    const sc = secoes("ceu", [["agora", "Agora"], ["calendario", "Calendário"], ["virada", "Virada " + anoV]]);
     return `<section class="pagina">
       ${topo("Lua, calendário e virada")}
-      <h1>O céu desta reta final</h1>
-      <p class="sub">A Lua marca o ritmo; a virada marca o salto.</p>
+      ${sc.html}
+      ${sc.at === "agora" ? `<div class="sec-corpo">
+      <h1>O céu de hoje</h1>
+      <p class="sub">A Lua marca o ritmo: quando plantar, quando agir, quando soltar.</p>
       <div class="card neon"><span class="brilho v"></span>
         <div class="card-cab"><span class="mini">Lua agora</span><span class="chip">${M.lua.iluminacao}% · dia ${M.lua.idade} do ciclo</span></div>
         <div style="display:flex;gap:16px;align-items:center"><div class="lua-ic" style="font-size:72px">${M.lua.icone}</div><div><h2>${esc(M.lua.nome)}</h2><p style="margin:6px 0">${esc(M.lua.intencao)}</p><span class="chip ouro">Hoje: ${esc(M.lua.acao)}</span></div></div>
       </div>
-
       ${(() => { const L = ASTROS.lunacao(hoje), t = CICLOS.TEMAS[((L.n % 12) + 12) % 12], feito = S.luas[L.n] && Object.values(S.luas[L.n]).filter(Boolean).length || 0;
         return `<div class="card clique" data-ir="ceu" data-sub='"ciclo"'>
           <div class="card-cab"><span class="mini">Ciclo da Lua · dia ${Math.floor(L.idade) + 1} de 29</span><span class="chip ouro">${feito} de 4 encontros</span></div>
           <h3>Tema: ${esc(t.nome)}</h3><p class="sub" style="margin:6px 0 10px">${esc(t.pergunta)}</p>${barra(L.idade / ASTROS.SINODICO * 100)}
           <p class="aviso" style="margin-top:8px">A cada lua nova, um tema novo e quatro encontros com o seu caderno. Toque para abrir ›</p></div>`; })()}
-
+      </div>` : sc.at === "calendario" ? `<div class="sec-corpo">
+      <h1>O que vem pela frente</h1>
+      <p class="sub">As datas fortes das próximas semanas e os números que cruzam o seu dia.</p>
+      <div class="card">
+        <div class="card-cab"><span class="mini">Próximos portais</span></div>
+        ${proximos.length ? proximos.map(e => { const d = new Date(e.data + "T12:00:00"); return `<div class="evento"><div class="d">${d.getDate()}<small>${MESES[d.getMonth()].slice(0, 3)}</small></div><div><b>${esc(e.titulo)}</b><div class="sub" style="font-size:13.5px">${esc(e.nota)}</div></div></div>`; }).join("") : `<p class="sub">O calendário desta edição terminou. Siga pela fase da Lua acima.</p>`}
+      </div>
+      <div class="card">
+        <div class="card-cab"><span class="mini">Sinais e horários-espelho</span></div>
+        <p class="sub" style="margin-bottom:10px">Quando um número repetido cruza o seu dia, a tradição lê como um recado. Anote e observe o que estava pensando na hora.</p>
+        <ul class="lista">${Object.entries(NUM.ANJOS).map(([n, t]) => `<li><span class="ic" style="font-family:var(--serif);font-size:18px;min-width:38px">${n}</span><span>${esc(t)}</span></li>`).join("")}</ul>
+      </div>
+      </div>` : `<div class="sec-corpo">
+      <h1>A virada para ${anoV}</h1>
+      <p class="sub">O salto de ano: seu número, sua cor e os rituais da tradição.</p>
       <div class="card ouro-b"><span class="brilho o"></span>
         <div class="card-cab"><span class="mini">Contagem para ${anoV}</span><span class="chip ouro">ano universal ${univ}</span></div>
         <div class="contagem"><div><b>${dd}</b><small>dias</small></div><div><b>${hh}</b><small>horas</small></div><div><b>${mm}</b><small>min</small></div></div>
@@ -607,28 +635,16 @@
         <div class="num-hero"><div class="num-medio" style="font-size:56px">${apProx}</div><div><h3>${esc(cp.tema)}</h3><p class="sub" style="margin:4px 0 0">${esc(cp.ano)}</p></div></div>
         <button class="btn primario pequeno" style="width:100%;margin-top:12px" data-ir="ceu" data-sub='"ano"'>Abrir minha Previsão ${anoV} ›</button>
       </div>
-
       <div class="card">
         <div class="card-cab"><span class="mini">Sua cor da virada</span></div>
         <div style="display:flex;gap:14px;align-items:center;margin-bottom:12px"><i style="width:48px;height:48px;border-radius:16px;background:${corV.hex};box-shadow:0 0 24px ${corV.hex};flex:0 0 auto"></i><div><h3>${esc(corV.cor)}</h3><p class="sub" style="margin:2px 0 0">Para ${esc(corV.para)}: a vibração do seu ano pessoal ${apProx}. Branco por baixo, para a paz, sempre combina.</p></div></div>
         <div class="cores">${ASTROS.VIRADA.cores.map((c, i) => `<div class="cor ${i === corIdx ? "on" : ""}"><i style="background:${c.hex}"></i>${esc(c.cor.split(" / ")[0])}<br><span style="opacity:.7">${esc(c.para)}</span></div>`).join("")}</div>
       </div>
-
-      <div class="card">
-        <div class="card-cab"><span class="mini">Próximos portais</span></div>
-        ${proximos.length ? proximos.map(e => { const d = new Date(e.data + "T12:00:00"); return `<div class="evento"><div class="d">${d.getDate()}<small>${MESES[d.getMonth()].slice(0, 3)}</small></div><div><b>${esc(e.titulo)}</b><div class="sub" style="font-size:13.5px">${esc(e.nota)}</div></div></div>`; }).join("") : `<p class="sub">O calendário desta edição terminou. Siga pela fase da Lua acima.</p>`}
-      </div>
-
       <div class="card">
         <div class="card-cab"><span class="mini">Rituais de virada</span><span class="chip">tradição brasileira</span></div>
         <ul class="lista">${ASTROS.VIRADA.rituais.map(r => `<li><span class="ic">✦</span><span><b>${esc(r.t)}.</b> ${esc(r.d)}</span></li>`).join("")}</ul>
       </div>
-
-      <div class="card">
-        <div class="card-cab"><span class="mini">Sinais e horários-espelho</span></div>
-        <p class="sub" style="margin-bottom:10px">Quando um número repetido cruza o seu dia, a tradição lê como um recado. Anote e observe o que estava pensando na hora.</p>
-        <ul class="lista">${Object.entries(NUM.ANJOS).map(([n, t]) => `<li><span class="ic" style="font-family:var(--serif);font-size:18px;min-width:38px">${n}</span><span>${esc(t)}</span></li>`).join("")}</ul>
-      </div>
+      </div>`}
     </section>`;
   }
 
@@ -649,6 +665,7 @@
         <div class="mini" style="margin-bottom:10px">Lembrete da noite</div>
         <p class="sub" style="margin-bottom:10px">Adicione ao calendário do celular um lembrete diário às 21h para abrir sua carta e fazer a prática do dia.</p>
         <button class="btn neon pequeno" id="lembrete" style="width:100%">Lembrar toda noite às 21h</button>
+        <button class="btn fantasma pequeno" id="rever-tour" style="width:100%;margin-top:10px">Rever a apresentação da Estela</button>
         <div class="sep"></div>
         <div class="mini" style="margin-bottom:10px">Seus dados</div>
         <div class="linha-btn"><button class="btn fantasma" id="exportar">Baixar backup</button><button class="btn fantasma" id="importar-btn">Restaurar</button></div>
@@ -687,6 +704,10 @@
     const sok = $("#sinal-ok"); if (sok) { const guardar = () => { const inp = $("#sinal"), t = inp.value.trim(); if (!t) return toast("Escreva o sinal antes de guardar."); S.sinais.push({ data: hojeKey(), tipo: "sinal", texto: t }); salvar(); presenca(); toast("Sinal guardado ✦"); render(true); }; sok.onclick = guardar; $("#sinal").onkeydown = e => { if (e.key === "Enter") guardar(); }; }
     app.querySelectorAll("[data-dia]").forEach(inp => inp.addEventListener("input", debounce(() => { const k = hojeKey(); S.dias[k] = Object.assign(S.dias[k] || {}, { [inp.dataset.dia]: inp.value }); salvar(); piscar("#salvo-dia"); }, 400)));
     const comp = $("#compartilhar"); if (comp) comp.onclick = () => compartilhar(M);
+    app.querySelectorAll("[data-sec]").forEach(b => b.onclick = () => { const [a, v] = b.dataset.sec.split(":"); if (secSel[a] === v) return; secSel[a] = v; secMudou = true; render(true); const alvo = $(".secoes"); if (alvo && window.scrollY > alvo.offsetTop) window.scrollTo({ top: Math.max(0, alvo.offsetTop - 12) }); });
+    app.querySelectorAll("[data-momento]").forEach(b => b.onclick = () => { momentoSel = b.dataset.momento; secMudou = true; if (rota.aba !== "hoje" || rota.sub) return ir("hoje"); render(true); const alvo = $(".momentos"); if (alvo) window.scrollTo({ top: Math.max(0, alvo.offsetTop - 12) }); });
+    const fd = $("#fechar-dia"); if (fd) fd.onclick = () => { const k = hojeKey(); S.dias[k] = Object.assign(S.dias[k] || {}, { noite: true }); salvar(); presenca(); celebrar(); toast("Dia fechado ✦ até amanhã"); setTimeout(() => render(true), 700); };
+    ESTELA.ligar();
 
 
     // ciclo da lua e compatibilidade
@@ -716,11 +737,29 @@
       const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([ics], { type: "text/calendar" })); a.download = "segredo-das-estrelas-lembrete.ics"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
       toast("Abra o arquivo baixado para adicionar ao calendário ✦");
     };
-    const imp = $("#imprimir"); if (imp) imp.onclick = () => { ir("mapa"); setTimeout(() => window.print(), 500); };
+    const imp = $("#imprimir"); if (imp) imp.onclick = () => { ir("mapa"); setTimeout(() => { secSel.mapa = "tudo"; render(true); addEventListener("afterprint", () => { delete secSel.mapa; render(true); }, { once: true }); window.print(); }, 500); };
     const ap = $("#apagar"); if (ap) ap.onclick = () => { if (confirm("Apagar todos os dados deste aparelho? Isso não pode ser desfeito.")) { localStorage.removeItem(CONFIG.chave); S = padrao(); rota = { aba: "hoje", sub: null }; render(); } };
   }
   function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
   function piscar(sel) { const el = $(sel); if (!el) return; el.classList.add("on"); setTimeout(() => el.classList.remove("on"), 1200); }
+
+  /* ---------- efeitos de entrada: cartões surgem ao rolar, números contam ---------- */
+  let olheiro = null;
+  function efeitos() {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const pag = $(".pagina"); if (!pag) return;
+    if ("IntersectionObserver" in window) {
+      if (olheiro) olheiro.disconnect();
+      olheiro = new IntersectionObserver(es => es.forEach(en => { if (en.isIntersecting) { en.target.classList.add("visto"); olheiro.unobserve(en.target); } }), { rootMargin: "0px 0px -6% 0px" });
+      const alto = innerHeight;
+      pag.querySelectorAll(":scope > .card, :scope > .sec-corpo > .card, :scope > .grade2, :scope > .sec-corpo > .grade2").forEach(el => { if (el.getBoundingClientRect().top > alto * 0.85) { el.classList.add("surge"); olheiro.observe(el); } });
+    }
+    pag.querySelectorAll(".num-grande").forEach(el => {
+      const alvo = Number(el.textContent.trim()); if (!Number.isInteger(alvo) || alvo < 2 || el.children.length) return;
+      const t0 = performance.now(), dur = 700;
+      (function passo(t) { const p = Math.min(1, (t - t0) / dur); el.textContent = String(Math.max(1, Math.round(alvo * (1 - Math.pow(1 - p, 3))))); if (p < 1 && el.isConnected) requestAnimationFrame(passo); else el.textContent = String(alvo); })(t0);
+    });
+  }
 
   /* ---------- celebração ---------- */
   function celebrar() {
@@ -765,11 +804,15 @@
 
   /* ---------- céu estrelado ---------- */
   function ceu() {
-    const c = $("#ceu"), x = c.getContext("2d"); let W, H, estrelas = [], parado = false;
+    const c = $("#ceu"), x = c.getContext("2d"); let W, H, estrelas = [], parado = false, cadente = null;
     const reduzido = matchMedia("(prefers-reduced-motion: reduce)").matches;
     function dim() { W = c.width = innerWidth * devicePixelRatio; H = c.height = innerHeight * devicePixelRatio; estrelas = Array.from({ length: Math.min(140, Math.floor(W * H / 14000)) }, () => ({ x: Math.random() * W, y: Math.random() * H, r: (Math.random() * 1.3 + .3) * devicePixelRatio, f: Math.random() * 6.28, v: Math.random() * .02 + .005, cor: Math.random() < .15 ? "232,192,120" : Math.random() < .3 ? "199,155,255" : "255,255,255" })); }
     function desenhar() {
       x.clearRect(0, 0, W, H);
+      if (!cadente && !reduzido && Math.random() < 0.006) cadente = { x: Math.random() * W * .8, y: Math.random() * H * .35, vx: (9 + Math.random() * 6) * devicePixelRatio, vy: (4 + Math.random() * 3) * devicePixelRatio, a: 1 };
+      if (cadente) { const m = cadente, g = x.createLinearGradient(m.x, m.y, m.x - m.vx * 9, m.y - m.vy * 9); g.addColorStop(0, `rgba(255,247,230,${m.a})`); g.addColorStop(1, "rgba(199,155,255,0)");
+        x.globalAlpha = 1; x.strokeStyle = g; x.lineWidth = 1.6 * devicePixelRatio; x.lineCap = "round"; x.beginPath(); x.moveTo(m.x, m.y); x.lineTo(m.x - m.vx * 9, m.y - m.vy * 9); x.stroke();
+        m.x += m.vx; m.y += m.vy; m.a -= 0.035; if (m.a <= 0 || m.x > W || m.y > H) cadente = null; }
       estrelas.forEach(s => { s.f += s.v; const a = .35 + .65 * (Math.sin(s.f) + 1) / 2; x.globalAlpha = a; x.fillStyle = `rgb(${s.cor})`; x.beginPath(); x.arc(s.x, s.y, s.r, 0, 7); x.fill(); });
       if (!reduzido && !parado) setTimeout(() => requestAnimationFrame(desenhar), 50);
     }
@@ -780,7 +823,7 @@
 
   /* ---------- núcleo exposto para os módulos (premium.js, telas-premium.js) ---------- */
   window.CDA = {
-    CONFIG, get S() { return S; }, get rota() { return rota; }, salvar, esc, toast, ir, render, mapa, barra, chips, voltar, topo, celebrar, debounce, presenca, sequencia,
+    CONFIG, get S() { return S; }, get rota() { return rota; }, salvar, esc, toast, ir, render, mapa, barra, chips, voltar, topo, celebrar, debounce, presenca, sequencia, secoes,
     hojeKey, fmtCurta, fmtData, MESES, DIAS, DIAS_C, diasPessoais, melhor, luasDoMes, diaExt, ymKey, primeiroNome, diaDoAno, arvoreSVG, $
   };
 
@@ -794,5 +837,5 @@
       .catch(e => console.warn("[conta] sincronização inicial falhou (segue com o que está salvo):", e.message));
   }
   render();
-  setInterval(() => { if (rota.aba === "ceu" && !rota.sub) render(); }, 60000);
+  setInterval(() => { if (rota.aba === "ceu" && !rota.sub && secSel.ceu === "virada") render(true); }, 60000);
 })();

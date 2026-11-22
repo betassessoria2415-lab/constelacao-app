@@ -13,18 +13,23 @@
   EXT.telas["portais/"] = function () {
     const c = C(), e = c.esc, S = c.S, deg = P.degustando();
     const restam = deg ? Math.max(1, Math.ceil((c.CONFIG.diasDegustacao || 7) - (Date.now() - new Date(S.criadoEm).getTime()) / 86400000)) : 0;
-    return `<section class="pagina">
-      ${c.topo("Seus portais")}
-      <h1>Portais</h1>
-      <p class="sub">Cada portal abre uma camada mais funda do seu mapa. Toque para ver a prévia com os seus dados.</p>
-      ${deg ? `<div class="card ouro-b"><div class="mini" style="margin-bottom:6px">Degustação do Clube</div><p style="margin:0">Você tem acesso completo ao Clube por mais <b>${restam} ${restam === 1 ? "dia" : "dias"}</b>. Depois, a previsão do mês e os ciclos da Lua pedem o código do mês.</p></div>` : ""}
-      ${P.CATALOGO.map(p => { const ok = P.liberado(p.id) && !(p.id === "clube" && deg), r = ROTAS[p.id];
+    const estaOk = p => P.liberado(p.id) && !(p.id === "clube" && deg);
+    const abertos = P.CATALOGO.filter(estaOk), fechados = P.CATALOGO.filter(p => !estaOk(p));
+    const sc = c.secoes("portais", fechados.length ? [["abrir", "Para abrir · " + fechados.length], ["meus", "Liberados · " + abertos.length]] : [["meus", "Liberados · " + abertos.length]]);
+    const cartao = p => { const ok = P.liberado(p.id) && !(p.id === "clube" && deg), r = ROTAS[p.id];
         return `<div class="card clique portal-card ${ok ? "" : "neon"}" data-ir="${r[0]}" data-sub='"${r[1]}"'>${ok ? "" : '<span class="brilho v"></span>'}
           <div class="card-cab"><span class="portal-ic">${p.icone}</span><span class="chip ${ok ? "verde" : "ouro"}">${ok ? "liberado ✓" : p.plano ? "plano " + e(p.plano) : e(p.preco)}</span></div>
           <h3>${e(p.nome)}</h3><p class="sub" style="margin:6px 0 10px">${e(p.chamada)}</p>
           <ul class="lista compacta">${p.beneficios.slice(0, 3).map(b => `<li><span class="ic">✦</span><span>${e(b)}</span></li>`).join("")}</ul>
           ${ok ? "" : `<button class="btn primario pequeno" data-portal="${p.id}" style="width:100%;margin-top:12px">${p.plano ? "Assinar o plano " + e(p.plano) : "Liberar " + e(p.nome)}</button>`}
-        </div>`; }).join("")}
+        </div>`; };
+    return `<section class="pagina">
+      ${c.topo("Seus portais")}
+      <h1>Portais</h1>
+      <p class="sub">Cada portal abre uma camada mais funda do seu mapa. Toque para ver a prévia com os seus dados.</p>
+      ${deg ? `<div class="card ouro-b"><div class="mini" style="margin-bottom:6px">Degustação do Clube</div><p style="margin:0">Você tem acesso completo ao Clube por mais <b>${restam} ${restam === 1 ? "dia" : "dias"}</b>. Depois, a previsão do mês e os ciclos da Lua pedem o código do mês.</p></div>` : ""}
+      ${sc.html}
+      <div class="sec-corpo">${(sc.at === "abrir" ? fechados : abertos).map(cartao).join("") || `<div class="card"><p class="sub" style="margin:0">${sc.at === "abrir" ? "Todos os portais estão liberados para você." : "Nenhum portal liberado ainda. Veja em Para abrir o que cada um revela."}</p></div>`}</div>
       <p class="aviso center">Os códigos chegam no e-mail da compra e liberam este aparelho. Conteúdo simbólico, para reflexão.</p>
     </section>`;
   };
