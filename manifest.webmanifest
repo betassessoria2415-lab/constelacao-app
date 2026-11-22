@@ -1,0 +1,13 @@
+{
+  "name": "Constelação do Amanhã",
+  "short_name": "Constelação",
+  "description": "Seu mapa cabalístico e a orientação de cada dia para a prosperidade.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0b0618",
+  "theme_color": "#0b0618",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%231a0f33'/%3E%3Cpath d='M32 10l5 14 15 1-12 9 5 15-13-9-13 9 5-15-12-9 15-1z' fill='%23E8C078'/%3E%3C/svg%3E", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
