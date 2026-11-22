@@ -1,12 +1,12 @@
-/* Constelação do Amanhã · app */
+/* O Segredo das Estrelas · app */
 (function () {
   "use strict";
 
   const CONFIG = {
     chave: "cda_app_v1",
     codigoAcesso: "ESTRELA2027", // código entregue após a compra; deixe "" para liberar sem código. Troque a cada mês para recorrência.
-    nomeMarca: "Constelação do Amanhã",
-    rodapeCompartilhar: "constelacaodoamanha",
+    nomeMarca: "O Segredo das Estrelas",
+    rodapeCompartilhar: "osegredodasestrelas",
     anoVirada: null,             // null = calcula: próximo 1º de janeiro
     diasDegustacao: 7,           // dias de Clube liberado para quem acabou de entrar
     segredoClube: "0f8b129d30d699e4f46a5751271b175facec",  // gera o código mensal do Clube (veja dono/gerador-de-codigos.html)
@@ -764,7 +764,7 @@
       </div>
       <div class="card">
         <div class="mini" style="margin-bottom:8px">Aviso importante</div>
-        <p class="aviso">A Constelação do Amanhã é um material de desenvolvimento pessoal. Não é aconselhamento financeiro, jurídico, psicológico ou médico e não garante nenhum resultado. Os conceitos da lei da atração, da numerologia, da Kabala e da astrologia aparecem como inspiração e metáfora, não como explicação científica. As decisões sobre seu dinheiro são sempre suas.</p>
+        <p class="aviso">O Segredo das Estrelas é um material de desenvolvimento pessoal. Não é aconselhamento financeiro, jurídico, psicológico ou médico e não garante nenhum resultado. Os conceitos da lei da atração, da numerologia, da Kabala e da astrologia aparecem como inspiração e metáfora, não como explicação científica. As decisões sobre seu dinheiro são sempre suas.</p>
         <p class="aviso">Se as dívidas estiverem tirando seu sono, procure os canais oficiais de negociação ou o Procon. Se a ansiedade estiver pesada demais, procure um profissional de saúde mental. Em momentos de crise, o CVV atende gratuitamente, 24 horas, pelo telefone 188.</p>
         <p class="aviso">© 2026 ${esc(CONFIG.nomeMarca)}. Uso pessoal e intransferível.</p>
       </div>
@@ -820,13 +820,13 @@
       if (nome.split(/\s+/).length < 2 || !nasc) return toast("Nome completo e data são obrigatórios.");
       S.perfil = { nome, nascimento: nasc, inicioJornada: ini || S.perfil.inicioJornada }; S.foco = $("#p-foco").value; S.genero = $("#p-genero").value; salvar(); toast("Mapa atualizado ✦"); render();
     };
-    const ex = $("#exportar"); if (ex) ex.onclick = () => { const b = new Blob([JSON.stringify(S, null, 2)], { type: "application/json" }); const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = `constelacao-backup-${hojeKey()}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); };
+    const ex = $("#exportar"); if (ex) ex.onclick = () => { const b = new Blob([JSON.stringify(S, null, 2)], { type: "application/json" }); const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = `segredo-das-estrelas-backup-${hojeKey()}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); };
     const ib = $("#importar-btn"), inp = $("#importar"); if (ib) { ib.onclick = () => inp.click(); inp.onchange = () => { const f = inp.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { try { const d = JSON.parse(r.result); if (!d.perfil) throw new Error("sem perfil"); S = Object.assign(padrao(), d); salvar(); toast("Backup restaurado ✦"); render(); } catch (e) { console.warn("[importar]", e); toast("Arquivo inválido."); } }; r.readAsText(f); }; }
     const lem = $("#lembrete"); if (lem) lem.onclick = () => {
       const d = new Date(), p2 = n => String(n).padStart(2, "0"), dia = `${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}`, url = location.href.split("#")[0].split("?")[0];
-      const ics = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Constelacao do Amanha//PT", "BEGIN:VEVENT", `UID:constelacao-${Date.now()}@app`, `DTSTAMP:${dia}T000000Z`, `DTSTART:${dia}T210000`, `DTEND:${dia}T211000`, "RRULE:FREQ=DAILY",
+      const ics = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//O Segredo das Estrelas//PT", "BEGIN:VEVENT", `UID:segredo-das-estrelas-${Date.now()}@app`, `DTSTAMP:${dia}T000000Z`, `DTSTART:${dia}T210000`, `DTEND:${dia}T211000`, "RRULE:FREQ=DAILY",
         "SUMMARY:✦ Sua carta e sua estrela de hoje", `DESCRIPTION:Cinco minutos para você. Abra: ${url}`, `URL:${url}`, "BEGIN:VALARM", "TRIGGER:PT0M", "ACTION:DISPLAY", "DESCRIPTION:Sua carta de hoje está esperando", "END:VALARM", "END:VEVENT", "END:VCALENDAR"].join("\r\n");
-      const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([ics], { type: "text/calendar" })); a.download = "constelacao-lembrete.ics"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([ics], { type: "text/calendar" })); a.download = "segredo-das-estrelas-lembrete.ics"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
       toast("Abra o arquivo baixado para adicionar ao calendário ✦");
     };
     const imp = $("#imprimir"); if (imp) imp.onclick = () => { ir("mapa"); setTimeout(() => window.print(), 500); };

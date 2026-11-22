@@ -44,7 +44,7 @@ window.PREMIUM = (function () {
     { id: "nome", icone: "✎", nome: "Nome de Poder", preco: "R$ 17", chamada: "O nome que você assina também vibra.",
       beneficios: ["Análise da sua assinatura e do nome social", "Nome do negócio ou da marca: qual vibra melhor para vender", "Nome de bebê: compare opções lado a lado", "Sugestões de ajuste para chegar ao número desejado"],
       checkout: "", hash: "a33db6b13d7fdf70a56d01edb2a07bbefe862c9f1c416a99bf0e8839da11e036" },
-    { id: "clube", icone: "✦", nome: "Clube da Constelação", preco: "R$ 9,90 por mês", chamada: "Tudo o que renova a cada mês e a cada lua.", mensal: true,
+    { id: "clube", icone: "✦", nome: "Clube das Estrelas", preco: "R$ 9,90 por mês", chamada: "Tudo o que renova a cada mês e a cada lua.", mensal: true,
       beneficios: ["Previsão completa de cada mês, liberada no dia 1", "Ciclos da Lua com os quatro encontros", "Ver a orientação de amanhã agora", "Segunda carta do dia"],
       checkout: "", hash: "" }
   ];

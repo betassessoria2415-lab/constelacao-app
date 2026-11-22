@@ -1,6 +1,6 @@
 {
-  "name": "Constelação do Amanhã",
-  "short_name": "Constelação",
+  "name": "O Segredo das Estrelas",
+  "short_name": "Segredo das Estrelas",
   "description": "Seu mapa cabalístico e a orientação de cada dia para a prosperidade.",
   "start_url": "./index.html",
   "display": "standalone",

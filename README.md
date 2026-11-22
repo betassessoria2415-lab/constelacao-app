@@ -1,4 +1,4 @@
-# Constelação do Amanhã · web app
+# O Segredo das Estrelas · web app
 
 App de orientação diária e mapa numerológico cabalístico, com foco em prosperidade. Produto de desenvolvimento pessoal: lei da atração, numerologia, Kabala e astrologia aparecem como inspiração e metáfora, sem promessa de resultado.
 

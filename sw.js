@@ -1,5 +1,5 @@
-/* Constelação do Amanhã · cache offline (rede primeiro, cache como reserva) */
-const CACHE = "cda-v2";
+/* O Segredo das Estrelas · cache offline (rede primeiro, cache como reserva) */
+const CACHE = "cda-v3";
 const ARQUIVOS = ["./", "index.html", "estilo.css", "app.js", "conta.js", "premium.js", "telas-premium.js", "manifest.webmanifest",
   "dados/estrelas.js", "dados/numerologia.js", "dados/astros.js", "dados/kabala.js", "dados/diario.js", "dados/ciclos.js",
   "dados/mapa-profundo.js", "dados/combos.js", "dados/astro-lua.js", "dados/previsao-ano.js"];
