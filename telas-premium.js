@@ -5,7 +5,7 @@
   const EXT = window.CDA_EXT, P = window.PREMIUM;
   const C = () => window.CDA;
   const lock = (id, html, txt) => (P.liberado(id) ? html : P.cadeado(id, html, txt));
-  const ROTAS = { profundo: ["mapa", "profundo"], ano: ["ceu", "ano"], lua: ["mapa", "lua"], amor: ["mapa", "compat"], nome: ["mapa", "nome"], clube: ["hoje", "mes"] };
+  const ROTAS = { guia: ["guia", ""], profundo: ["mapa", "profundo"], ano: ["ceu", "ano"], lua: ["mapa", "lua"], amor: ["mapa", "compat"], nome: ["mapa", "nome"], clube: ["hoje", "mes"] };
   const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
   const nasc = () => C().S.perfil.nascimento.split("-").map(Number);
 

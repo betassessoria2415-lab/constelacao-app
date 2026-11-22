@@ -28,7 +28,8 @@ No ar: https://constelacao-app.vercel.app
 | `dados/ciclos.js` | Semana, previsão do mês, ciclos lunares, compatibilidade |
 | `dados/previsao-ano.js` | Previsão do ano pessoal |
 | `dados/kabala.js` | Árvore da Vida, 72 Nomes, escala emocional |
-| `dados/estrelas.js` | Conteúdo da jornada das 30 estrelas |
+| `dados/guia.js` | Guia de Manifestação: 7 etapas (princípios herméticos), técnicas com autor e obra, dicionário, fontes |
+| `telas-guia.js` | Telas da trajetória, das técnicas, do resgate de frequência e do dicionário |
 
 ## Rodar localmente
 ```

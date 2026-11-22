@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>O Segredo das Estrelas · Seu mapa e sua orientação diária</title>
-<meta name="description" content="Mapa cabalístico pelo nome e data de nascimento, orientação do dia, fases da lua e o ritual das 30 estrelas para prosperidade.">
+<meta name="description" content="Mapa cabalístico pelo nome e data de nascimento, orientação do dia, fases da lua e um guia de manifestação em sete etapas, com os princípios herméticos.">
 <meta name="theme-color" content="#0b0618">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -28,9 +28,9 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4" r="2"/><circle cx="5" cy="9" r="2"/><circle cx="19" cy="9" r="2"/><circle cx="12" cy="13" r="2"/><circle cx="5" cy="17" r="2"/><circle cx="19" cy="17" r="2"/><circle cx="12" cy="21" r="2"/><path d="M12 6v5M7 9h10M12 15v4M6.5 10.5l4 2M17.5 10.5l-4 2M6.5 15.5l4-2M17.5 15.5l-4-2"/></svg>
     Mapa
   </button>
-  <button class="tab" data-aba="jornada" aria-label="Jornada">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z"/></svg>
-    Jornada
+  <button class="tab" data-aba="guia" aria-label="Guia">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M5 8c2.5-3 5-3 7 0s4.500 3 7 0"/><path d="M5 16c2.500-3 5-3 7 0s4.500 3 7 0"/><circle cx="12" cy="12" r="2"/></svg>
+    Guia
   </button>
   <button class="tab" data-aba="ceu" aria-label="Céu">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13.5A8.5 8.5 0 1 1 10.5 3a7 7 0 0 0 10.5 10.5z"/></svg>
@@ -42,7 +42,6 @@
   </button>
 </nav>
 <div class="toast" id="toast" role="status"></div>
-<script src="dados/estrelas.js"></script>
 <script src="dados/numerologia.js"></script>
 <script src="dados/astros.js"></script>
 <script src="dados/kabala.js"></script>
@@ -52,9 +51,11 @@
 <script src="dados/combos.js"></script>
 <script src="dados/astro-lua.js"></script>
 <script src="dados/previsao-ano.js"></script>
+<script src="dados/guia.js"></script>
 <script src="conta.js"></script>
 <script src="premium.js"></script>
 <script src="telas-premium.js"></script>
+<script src="telas-guia.js"></script>
 <script src="app.js"></script>
 <script>
   if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {

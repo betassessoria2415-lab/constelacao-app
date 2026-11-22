@@ -1,7 +1,7 @@
 /* O Segredo das Estrelas · cache offline (rede primeiro, cache como reserva) */
-const CACHE = "cda-v4";
-const ARQUIVOS = ["./", "index.html", "estilo.css", "app.js", "conta.js", "premium.js", "telas-premium.js", "manifest.webmanifest",
-  "dados/estrelas.js", "dados/numerologia.js", "dados/astros.js", "dados/kabala.js", "dados/diario.js", "dados/ciclos.js",
+const CACHE = "cda-v5";
+const ARQUIVOS = ["./", "index.html", "estilo.css", "app.js", "conta.js", "premium.js", "telas-premium.js", "telas-guia.js", "manifest.webmanifest",
+  "dados/guia.js", "dados/numerologia.js", "dados/astros.js", "dados/kabala.js", "dados/diario.js", "dados/ciclos.js",
   "dados/mapa-profundo.js", "dados/combos.js", "dados/astro-lua.js", "dados/previsao-ano.js"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(ARQUIVOS)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });

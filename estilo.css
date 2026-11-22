@@ -331,3 +331,31 @@ input[type="date"] { color-scheme: dark; }
 .trio .card { margin: 0; text-align: center; padding: 14px 8px; }
 .trio .tr-s { font-size: 34px; line-height: 1.2; color: var(--violeta2); text-shadow: 0 0 16px rgba(176,124,255,.7); }
 @media print { .portal-lock, .folha-fundo, .perfil-btn { display: none !important; } .pagina { animation: none !important; } .tri span.seq { background: #ddd; } }
+
+/* ---------- Guia de Manifestação: trilha, marco, técnica, dicionário ---------- */
+.trilha { display: grid; gap: 0; }
+.trilha .no { display: flex; align-items: center; gap: 12px; padding: 8px 0; position: relative; }
+.trilha .no:not(:last-child)::after { content: ""; position: absolute; left: 19px; top: 44px; bottom: -8px; width: 2px; background: rgba(255,255,255,.12); }
+.trilha .no.feita:not(:last-child)::after { background: linear-gradient(180deg, #E8C078, rgba(232,192,120,.3)); }
+.trilha .bola { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; flex: 0 0 auto; font-size: 16px; border: 1px solid rgba(255,255,255,.16); color: var(--texto3); background: rgba(255,255,255,.04); position: relative; z-index: 1; }
+.trilha .no b { display: block; font-family: var(--serif); font-size: 18px; line-height: 1.2; }
+.trilha .no small { color: var(--texto3); font-size: 12.5px; }
+.trilha .no.feita .bola { background: radial-gradient(circle, #F6DFA6, #E0B460); color: #2A1A05; border-color: transparent; box-shadow: 0 0 16px rgba(232,192,120,.6); font-weight: 700; }
+.trilha .no.atual .bola { border-color: var(--neon); color: #fff; background: rgba(155,92,255,.3); box-shadow: 0 0 20px rgba(155,92,255,.7); animation: pulsar 4s ease-in-out infinite; }
+.trilha .no.atual b { color: var(--ouro2); }
+.trilha .no.futura { opacity: .55; }
+.marco { background: rgba(232,192,120,.06); border: 1px solid rgba(232,192,120,.25); border-radius: 18px; padding: 14px; }
+.marco.ok { background: rgba(123,224,176,.07); border-color: rgba(123,224,176,.35); }
+.marco .campo:last-of-type { margin-bottom: 10px; }
+.passos { margin: 0; padding: 0; list-style: none; counter-reset: passo; }
+.passos li { counter-increment: passo; position: relative; padding: 0 0 14px 44px; line-height: 1.5; }
+.passos li:last-child { padding-bottom: 0; }
+.passos li::before { content: counter(passo); position: absolute; left: 0; top: -2px; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-family: var(--serif); font-weight: 700; font-size: 16px; color: #2A1A05; background: linear-gradient(135deg, #F3D48C, #E0B460); }
+.termo { padding: 14px 0; border-bottom: 1px solid rgba(255,255,255,.08); }
+.termo:first-child { padding-top: 0; } .termo:last-child { border: 0; padding-bottom: 0; }
+.termo h3 { color: var(--ouro2); margin-bottom: 4px; }
+.termo p { margin: 0 0 4px; }
+.termo .hoje { color: var(--texto2); font-size: 14.5px; }
+.pratica-hoje { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; margin-bottom: 12px; border-radius: 16px; background: rgba(255,255,255,.06); border: 1px solid var(--borda); }
+.pratica-hoje b { font-family: var(--serif); font-size: 18px; }
+.btn[disabled] { opacity: .85; cursor: default; }

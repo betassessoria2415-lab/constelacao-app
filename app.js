@@ -10,7 +10,7 @@
     anoVirada: null,             // null = calcula: próximo 1º de janeiro
     diasDegustacao: 7,           // dias de Clube liberado para quem acabou de entrar
     segredoClube: "0f8b129d30d699e4f46a5751271b175facec",  // gera o código mensal do Clube (veja dono/gerador-de-codigos.html)
-    checkouts: { profundo: "https://pay.kiwify.com.br/o8GJp7z", lua: "https://pay.kiwify.com.br/o8GJp7z", amor: "https://pay.kiwify.com.br/o8GJp7z", clube: "https://pay.kiwify.com.br/o8GJp7z" },               // links de compra por portal: { profundo: "https://...", ano: "...", lua: "...", amor: "...", nome: "...", clube: "..." }
+    checkouts: { guia: "https://pay.kiwify.com.br/o8GJp7z", profundo: "https://pay.kiwify.com.br/o8GJp7z", lua: "https://pay.kiwify.com.br/o8GJp7z", amor: "https://pay.kiwify.com.br/o8GJp7z", clube: "https://pay.kiwify.com.br/o8GJp7z" },               // links de compra por portal: { profundo: "https://...", ano: "...", lua: "...", amor: "...", nome: "...", clube: "..." }
     hashes: {},                  // hashes SHA-256 dos códigos por portal: { profundo: ["..."], ... }
     codigoMestreHash: "2faf1d7247a922a61ebdf0e5825eaf302abd1fc9f47af2504e5cdb17fffa62f7"         // opcional: hash de um código que abre qualquer portal (para suporte)
   };
@@ -56,8 +56,6 @@
     const diaPessoal = NUM.diaPessoal(d, m, data);
     const diaUniversal = NUM.diaUniversal(data);
     const somaData = String(d).split("").concat(String(m).split(""), String(a).split("")).reduce((x, y) => x + Number(y), 0);
-    const estrelaGuia = ((somaData + expressao) % 30) + 1;
-    const constChave = ({ 1: 1, 9: 1, 11: 1, 2: 2, 4: 2, 8: 2, 3: 3, 5: 3, 7: 3, 6: 4, 22: 4 })[destino] || 1;
     const carmicas = [];
     const brutaNome = NUM.somaBruta(nome);
     if (NUM.CARMICAS[brutaNome]) carmicas.push({ n: brutaNome, onde: "no seu nome", t: NUM.CARMICAS[brutaNome] });
@@ -65,11 +63,11 @@
     const signo = ASTROS.signo(d, m);
     const lua = ASTROS.faseLua(data);
     const nome72 = KABALA.NOMES72[(diaDoAno(data) + destino) % 72];
-    const freqNoite = ESTRELAS[(diaDoAno(data) + expressao) % 30];
+    const freqNoite = { freq: GUIA_APP.afirmacaoDoDia(data, expressao) };
     const faseIdx = Math.max(0, ASTROS.FASES.findIndex(f => f.nome === lua.nome));
     const orient = DIARIO.orientacao({ diaPessoal, destino, faseIdx, data });
     const carta = DIARIO.cartaDoDia(nome, data);
-    return { orient, carta, d, m, a, destino, expressao, motivacao, impressao, dia, anoRef, anoPessoal, anoPessoalProx, mesPessoal, diaPessoal, diaUniversal, estrelaGuia, constChave, carmicas, signo, lua, nome72, freqNoite, letras: NUM.letras(nome) };
+    return { orient, carta, d, m, a, destino, expressao, motivacao, impressao, dia, anoRef, anoPessoal, anoPessoalProx, mesPessoal, diaPessoal, diaUniversal, carmicas, signo, lua, nome72, freqNoite, letras: NUM.letras(nome) };
   }
 
   /* ---------- navegação ---------- */
@@ -93,7 +91,7 @@
     }
     return n;
   }
-  const MARCOS = { 3: "3 noites seguidas. O hábito começou a nascer.", 7: "7 noites seguidas. Uma semana inteira de presença.", 14: "14 noites. Você já é constante.", 21: "21 noites. Isso já faz parte de você.", 30: "30 noites seguidas. Uma constelação inteira de presença." };
+  const MARCOS = { 3: "3 noites seguidas. O hábito começou a nascer.", 7: "7 noites seguidas. Uma semana inteira de presença.", 14: "14 noites. Você já é constante.", 21: "21 noites. Isso já faz parte de você.", 30: "30 noites seguidas. Um mês inteiro de presença." };
   function presenca() {
     const k = hojeKey(); if (S.presencas[k]) return;
     S.presencas[k] = true; const seq = sequencia(); S.melhorSeq = Math.max(S.melhorSeq || 0, seq); salvar();
@@ -109,7 +107,6 @@
   }
   function provas() {
     const itens = (S.sinais || []).map(s => ({ data: s.data, tipo: s.tipo, texto: s.texto }));
-    Object.entries(S.estrelas).forEach(([n, e]) => { if (e.feita) itens.push({ data: e.data, tipo: "estrela", texto: `Estrela ${n} acesa: ${ESTRELAS[n - 1].conquista}` }); });
     return itens.sort((a, b) => (a.data < b.data ? 1 : -1));
   }
 
@@ -142,7 +139,6 @@
     else if (rota.aba === "hoje") html = rota.sub === "provas" ? telaProvas() : rota.sub === "mes" ? telaMes(M) : telaHoje(M);
     else if (rota.aba === "mapa") html = rota.sub === "compat" ? telaCompat(M) : telaMapa(M);
     else if (rota.aba === "ceu" && rota.sub === "ciclo") html = telaCiclo(M);
-    else if (rota.aba === "jornada") html = rota.sub && rota.sub.estrela ? telaEstrela(rota.sub.estrela, M) : rota.sub === "encerramento" ? telaEncerramento() : rota.sub === "passos" ? telaPassos() : telaJornada(M);
     else if (rota.aba === "ceu") html = telaCeu(M);
     else if (rota.aba === "eu") html = telaEu(M);
     app.innerHTML = html;
@@ -168,16 +164,13 @@
   const voltar = (aba, sub = null) => `<button class="voltar" data-ir="${aba}" ${sub ? `data-sub='${JSON.stringify(sub)}'` : ""}>‹ Voltar</button>`;
   const chips = (arr, cls = "") => arr.map(x => `<span class="chip ${cls}">${esc(x)}</span>`).join(" ");
   const barra = pct => `<div class="barra"><div style="width:${pct}%"></div></div>`;
-  const ICONES = { reflexao: "✦", escrita: "✎", gratidao: "♡", visualizacao: "◉", compromisso: "✶" };
 
   function saudacao() { const h = new Date().getHours(); return h < 6 ? "Boa madrugada" : h < 12 ? "Bom dia" : h < 18 ? "Boa tarde" : "Boa noite"; }
   const primeiroNome = () => (S.perfil.nome || "").trim().split(/\s+/)[0].replace(/^./, c => c.toUpperCase());
-  const progresso = () => Object.values(S.estrelas).filter(e => e.feita).length;
-  const proximaEstrela = () => ESTRELAS.find(e => !(S.estrelas[e.n] && S.estrelas[e.n].feita)) || ESTRELAS[29];
 
   /* ---------- conta: login por e-mail e direitos comprados ---------- */
   let contaEtapa = null;   // { email } depois que o e-mail de acesso foi pedido
-  const NOME_PORTAL = { base: "Acesso ao app", profundo: "Mapa Profundo", ano: "Previsão 2027", lua: "Lua e Ascendente", amor: "Amor e Vínculos", nome: "Nome de Poder", clube: "Clube" };
+  const NOME_PORTAL = { base: "Acesso ao app", profundo: "Mapa Profundo", ano: "Previsão 2027", lua: "Lua e Ascendente", amor: "Amor e Vínculos", nome: "Nome de Poder", clube: "Clube das Estrelas", guia: "Trajetória completa" };
   function contaHTML() {
     if (!window.CONTA) return "";
     if (CONTA.logada()) {
@@ -227,7 +220,7 @@
     return `<section class="pagina onb">
       <div class="logo">✦</div>
       <h1 class="center">Seu céu tem um desenho só seu.</h1>
-      <p class="sub center" style="margin:10px 0 22px">Pelo seu nome e sua data de nascimento, o app revela seu número de destino, sua Sefirá na Árvore da Vida e a orientação de cada dia até a virada do ano.</p>
+      <p class="sub center" style="margin:10px 0 22px">Pelo seu nome e sua data de nascimento, o app revela seu número de destino, sua Sefirá na Árvore da Vida e guia você, um dia de cada vez, do desejo à manifestação.</p>
       <div class="card neon"><span class="brilho v"></span>
         <div class="campo"><label>Nome completo (como na certidão)</label><input id="nome" autocomplete="name" placeholder="Maria Aparecida da Silva"></div>
         <div class="campo"><label>Data de nascimento</label><input id="nasc" type="date" min="1920-01-01" max="2020-12-31"></div>
@@ -245,13 +238,13 @@
       const nome = $("#nome").value.trim(), nasc = $("#nasc").value;
       if (nome.split(/\s+/).length < 2) return toast("Digite nome e sobrenome.");
       if (!nasc) return toast("Escolha sua data de nascimento.");
-      S.perfil = { nome, nascimento: nasc, inicioJornada: hojeKey() };
+      S.perfil = { nome, nascimento: nasc };
       const fEl = app.querySelector("[data-foco].on"); S.foco = fEl ? fEl.dataset.foco : "dinheiro"; S.genero = $("#genero").value; S.criadoEm = S.criadoEm || new Date().toISOString(); salvar();
       telaCalculando(() => { rota = { aba: "mapa", sub: null }; render(); });
     };
   }
   function telaCalculando(fim) {
-    const passos = ["Lendo as letras do seu nome…", "Somando as vibrações…", "Localizando sua Sefirá na Árvore da Vida…", "Consultando a fase da Lua…", "Acendendo suas estrelas…"];
+    const passos = ["Lendo as letras do seu nome…", "Somando as vibrações…", "Localizando sua Sefirá na Árvore da Vida…", "Consultando a fase da Lua…", "Abrindo a sua trajetória…"];
     app.innerHTML = `<section class="pagina calc"><div class="orb"></div><h2>Desenhando seu céu</h2><p class="passo" id="passo"></p></section>`;
     let i = 0; const el = $("#passo");
     const t = setInterval(() => { el.textContent = passos[i]; el.style.animation = "none"; void el.offsetWidth; el.style.animation = ""; i++; if (i > passos.length) { clearInterval(t); fim(); } }, 650);
@@ -259,7 +252,7 @@
 
   function telaHoje(M) {
     const d = new Date(), k = hojeKey(d), dia = S.dias[k] || {};
-    const c = NUM.CICLO[M.diaPessoal], prox = proximaEstrela(), feita = S.estrelas[prox.n] && S.estrelas[prox.n].feita;
+    const c = NUM.CICLO[M.diaPessoal];
     const nivel = dia.nivel || 0;
     const faixa = nivel ? (nivel <= 7 ? "alto" : nivel <= 14 ? "medio" : "baixo") : null;
     const O = M.orient, K = M.carta, seq = sequencia(), lemb = lembranca(), nProvas = provas().length;
@@ -284,6 +277,8 @@
 
       ${dia.carta ? (dia.carta2 ? (() => { const K2 = DIARIO.cartaDoDia(S.perfil.nome + "#2", d); return `<div class="card"><div class="card-cab"><span class="mini">Segunda carta · conselho</span><span class="chip ouro">${esc(K2.arcano)}</span></div><div style="display:flex;gap:14px;align-items:center"><div class="hebraica" style="font-size:44px;line-height:1">${K2.letra}</div><div><h3>${esc(K2.nome)}</h3><p style="margin:4px 0 0">${esc(K2.msg)}</p></div></div></div>`; })()
         : `<button class="btn fantasma pequeno" ${clube() ? 'id="carta2"' : 'data-portal="clube"'} style="width:100%;margin:-4px 0 14px">✦ Tirar uma segunda carta ${clube() ? "" : "· Clube"}</button>`) : ""}
+      ${GUIA_APP.cardHoje()}
+
       ${d.getMonth() >= 9 ? `<div class="card clique ouro-b" data-ir="ceu" data-sub='"ano"'><div class="card-cab"><span class="mini">Reta final do ano</span><span class="chip ouro">ano pessoal ${M.anoPessoalProx}</span></div><h3>Sua Previsão ${d.getFullYear() + 1} está pronta</h3><p class="sub" style="margin:6px 0 0">${esc(NUM.CICLO[M.anoPessoalProx].tema)}: veja o que o próximo ano pede de você ›</p></div>` : ""}
 
       ${lemb ? `<div class="card ouro-b" id="lembranca"><span class="brilho o"></span>
@@ -341,7 +336,7 @@
         <div class="card-cab"><span class="mini">Check-in de energia</span>${nivel ? `<span class="chip violeta">nível ${nivel} de 22</span>` : ""}</div>
         <p class="sub" style="margin-bottom:10px">Como você está se sentindo agora? Na lei da atração, o sentimento mostra a frequência que você emite.</p>
         <select id="nivel"><option value="0">Escolher…</option>${KABALA.ESCALA.map(e => `<option value="${e.nivel}" ${e.nivel === nivel ? "selected" : ""}>${e.nivel}. ${esc(e.nome)}</option>`).join("")}</select>
-        ${faixa ? `<p style="margin-top:12px">${esc(KABALA.SUBIDA[faixa])}</p>` : ""}
+        ${faixa ? `<p style="margin-top:12px">${esc(KABALA.SUBIDA[faixa])}</p>${faixa !== "alto" ? `<button class="btn neon pequeno" data-ir="guia" data-sub='"resgate"' style="width:100%">Fazer um resgate de frequência agora ›</button>` : ""}` : ""}
       </div>
 
       <div class="card">
@@ -371,13 +366,6 @@
         <div style="display:flex;gap:16px;align-items:center"><div class="hebraica" style="font-size:40px" dir="rtl">${M.nome72.letras}</div><div><h3>${esc(M.nome72.intencao)}</h3><p class="sub" style="margin:2px 0 0">Olhe para as letras por 30 segundos, da direita para a esquerda, respirando devagar. Não precisa pronunciar: a tradição diz que a forma já comunica.</p></div></div>
       </div>
 
-      <div class="card clique ${feita ? "" : "ouro-b"}" data-ir="jornada" data-sub='{"estrela":${prox.n}}'>
-        <div class="card-cab"><span class="mini">Sua estrela desta noite</span><span class="chip ouro">Estrela ${prox.n} de 30</span></div>
-        <h3>${esc(prox.titulo)}</h3>
-        <p class="sub" style="margin:6px 0 10px">${esc(TIPOS_RITUAL[prox.tipo].nome)} · 5 minutos</p>
-        ${barra(progresso() / 30 * 100)}
-      </div>
-
       <button class="btn neon" id="compartilhar">Compartilhar minha energia de hoje ✦</button>
       <p class="aviso center" style="margin-top:14px">Orientação simbólica para reflexão. Não substitui aconselhamento financeiro, psicológico ou médico.</p>
     </section>`;
@@ -385,7 +373,7 @@
 
   function telaProvas() {
     const itens = provas(), seq = sequencia();
-    const rot = { sinal: ["✦", "Sinal"], conquista: ["★", "Desejo realizado"], estrela: ["☆", "Jornada"] };
+    const rot = { sinal: ["✦", "Sinal"], conquista: ["★", "Desejo realizado"], pratica: ["➶", "Prática"] };
     return `<section class="pagina">
       <header class="topo">${voltar("hoje")}<span class="chip verde">${itens.length} ${itens.length === 1 ? "prova" : "provas"}</span></header>
       <div class="mini">Seu caderno de provas</div>
@@ -395,7 +383,7 @@
         <div class="card" style="margin:0"><div class="mini">Sequência atual</div><div class="num-medio">${seq}</div><div class="sub" style="font-size:13px">${seq === 1 ? "noite" : "noites"} seguidas</div></div>
         <div class="card" style="margin:0"><div class="mini">Melhor sequência</div><div class="num-medio">${Math.max(S.melhorSeq || 0, seq)}</div><div class="sub" style="font-size:13px">seu recorde</div></div>
       </div>
-      <div class="card">${itens.length ? itens.map(i => `<div class="evento"><div class="d" style="font-size:20px">${rot[i.tipo][0]}<small>${fmtCurta(i.data).slice(0, 5)}</small></div><div><div class="mini">${rot[i.tipo][1]}</div><div>${esc(i.texto)}</div></div></div>`).join("") : `<p class="sub" style="margin:0">Ainda vazio. Registre o primeiro sinal na tela Hoje ou acenda uma estrela na Jornada.</p>`}</div>
+      <div class="card">${itens.length ? itens.map(i => `<div class="evento"><div class="d" style="font-size:20px">${rot[i.tipo][0]}<small>${fmtCurta(i.data).slice(0, 5)}</small></div><div><div class="mini">${rot[i.tipo][1]}</div><div>${esc(i.texto)}</div></div></div>`).join("") : `<p class="sub" style="margin:0">Ainda vazio. Registre o primeiro sinal na tela Hoje. Cada desejo que você confirmar também aparece aqui.</p>`}</div>
     </section>`;
   }
 
@@ -448,7 +436,7 @@
     const antigos = Object.keys(S.luas).map(Number).filter(n => n !== L.n && S.luas[n] && S.luas[n].nova).sort((a, b) => b - a);
     return `<section class="pagina">
       <header class="topo">${voltar("ceu")}<span class="chip ouro">ciclo ${fmt(L.inicio)} a ${fmt(L.fim)}</span></header>
-      <div class="mini">Ciclo da Lua · a jornada que continua</div>
+      <div class="mini">Ciclo da Lua · o ritmo da sua prática</div>
       <h1 style="margin:8px 0">Tema deste ciclo: ${esc(tema.nome)}</h1>
       <div class="card neon"><span class="brilho v"></span>
         <p class="freq">“${esc(tema.frase)}”</p>
@@ -501,7 +489,6 @@
   function telaMapa(M) {
     const sig = NUM.SIGNIFICADOS[M.destino], sef = KABALA.sefiraDe(M.destino), sefE = KABALA.sefiraDe(M.expressao);
     const bloco = (rot, n, desc) => { const s = NUM.SIGNIFICADOS[n]; return `<div class="card" style="margin:0"><div class="mini">${rot}</div><div style="display:flex;align-items:baseline;gap:10px;margin:6px 0 4px"><span class="num-medio">${n}</span><b>${esc(s.nome)}</b></div><p class="sub" style="margin:0;font-size:13.5px">${esc(desc)}</p></div>`; };
-    const cc = CONSTELACOES[M.constChave - 1], eg = ESTRELAS[M.estrelaGuia - 1];
     return `<section class="pagina">
       ${topo("Seu mapa cabalístico")}
       <h1>${esc(S.perfil.nome.split(" ")[0])}, seu número de destino é</h1>
@@ -533,7 +520,7 @@
         ${bloco("Expressão · quem você é", M.expressao, "A soma de todas as letras: seus talentos naturais.")}
         ${bloco("Motivação · o que sua alma quer", M.motivacao, "A soma das vogais: o desejo íntimo que move suas escolhas.")}
         ${bloco("Impressão · como te veem", M.impressao, "A soma das consoantes: a primeira imagem que você passa.")}
-        ${bloco("Dia natal · seu dom", M.dia, "O dia em que nasceu: um talento específico para a jornada.")}
+        ${bloco("Dia natal · seu dom", M.dia, "O dia em que nasceu: um talento específico para o seu caminho.")}
       </div>
 
       <div class="card">
@@ -572,14 +559,6 @@
 
       ${M.carmicas.length ? `<div class="card"><div class="mini" style="margin-bottom:8px">Lições cármicas</div>${M.carmicas.map(c => `<p><b>${c.n}</b> ${esc(c.onde)}: ${esc(c.t)}</p>`).join("")}</div>` : ""}
 
-      <div class="card clique ouro-b" data-ir="jornada" data-sub='{"estrela":${eg.n}}'>
-        <div class="card-cab"><span class="mini">Sua constelação-chave e sua estrela-guia</span></div>
-        <h3>Constelação 0${cc.n} · ${esc(cc.nome)}</h3>
-        <p class="sub" style="margin:6px 0 10px">${esc(cc.resumo)}</p>
-        <div class="citacao"><b>Estrela-guia ${eg.n}</b><br><span class="serif" style="font-size:18px">${esc(eg.titulo)}</span></div>
-        <p class="aviso" style="margin-top:10px">Toque para abrir a estrela que mais fala com o seu mapa.</p>
-      </div>
-
       <div class="card clique neon" data-ir="mapa" data-sub='"compat"'><span class="brilho r"></span>
         <div class="card-cab"><span class="mini">Compatibilidade</span><span class="chip violeta">${(S.pessoas || []).length} ${(S.pessoas || []).length === 1 ? "pessoa" : "pessoas"}</span></div>
         <h3>Quem caminha com você</h3>
@@ -593,90 +572,6 @@
     const linhas = KABALA.CAMINHOS.map(([a, b]) => { const p = S10[a - 1], q = S10[b - 1]; return `<line class="c" x1="${p.x}" y1="${p.y}" x2="${q.x}" y2="${q.y}"/>`; }).join("");
     const nos = S10.concat(acesas.includes(11) ? [by(11)] : []).map(s => { const on = acesas.includes(s.n); return `<g><circle class="s ${on ? "on" : ""}" cx="${s.x}" cy="${s.y}" r="15" ${s.oculta ? 'stroke-dasharray="3 2"' : ""}/><text class="${on ? "on" : ""}" x="${s.x}" y="${s.y + 3}">${s.n === 11 ? "Daath" : s.nome}</text></g>`; }).join("");
     return `<svg class="arvore" viewBox="0 0 200 300" role="img" aria-label="Árvore da Vida">${linhas}${nos}</svg>`;
-  }
-
-  const POS = [[14,70],[24,52],[36,62],[30,84],[46,78],[52,56],[44,40], [66,30],[78,42],[90,30],[84,58],[98,50],[72,66],[104,68], [116,86],[126,70],[138,80],[132,98],[148,92],[150,66],[140,52], [160,40],[170,26],[182,38],[176,56],[190,56],[166,72],[180,82],[192,74],[158,90]];
-  function mapaSVG(M) {
-    let linhas = "";
-    CONSTELACOES.forEach(c => { for (let i = c.de; i < c.ate; i++) { const [x1, y1] = POS[i - 1], [x2, y2] = POS[i]; linhas += `<line class="l" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`; } });
-    const estrelas = POS.map(([x, y], i) => { const n = i + 1, on = S.estrelas[n] && S.estrelas[n].feita; return `<g data-estrela="${n}" style="cursor:pointer"><circle class="e ${on ? "on" : ""} ${n === M.estrelaGuia ? "guia" : ""}" cx="${x}" cy="${y}" r="${on ? 3.2 : 2.4}"/><text x="${x}" y="${y + 7.5}">${n}</text></g>`; }).join("");
-    return `<svg class="mapa-svg" viewBox="0 0 206 110" role="img" aria-label="Mapa das 30 estrelas">${linhas}${estrelas}</svg>`;
-  }
-
-  function telaJornada(M) {
-    const p = progresso(), prox = proximaEstrela();
-    const inicio = S.perfil.inicioJornada ? fmtCurta(S.perfil.inicioJornada) : "";
-    return `<section class="pagina">
-      ${topo("O ritual das 30 estrelas")}
-      <h1>Sua constelação</h1>
-      <p class="sub">${p} de 30 estrelas acesas${inicio ? ` · começou em ${inicio}` : ""}</p>
-      <div class="card neon"><span class="brilho v"></span>${mapaSVG(M)}<div style="margin-top:10px">${barra(p / 30 * 100)}</div>
-        <p class="aviso" style="margin-top:10px">Uma estrela por noite. Se perder uma, continue de onde parou. O anel violeta marca sua estrela-guia.</p></div>
-      ${p < 30 ? `<button class="btn primario" data-ir="jornada" data-sub='{"estrela":${prox.n}}' style="margin-bottom:16px">Acender a estrela ${prox.n} esta noite ✦</button>` : `<div class="linha-btn" style="margin-bottom:16px"><button class="btn primario" data-ir="jornada" data-sub='"encerramento"'>Reflexão de encerramento</button><button class="btn fantasma" data-ir="jornada" data-sub='"passos"'>Meus próximos passos</button></div>`}
-      ${CONSTELACOES.map(c => `
-        <div class="card">
-          <div class="card-cab"><span class="mini">Constelação 0${c.n} · noites ${c.noites}</span>${c.n === M.constChave ? `<span class="chip violeta">sua chave</span>` : ""}</div>
-          <h3>${esc(c.nome)}</h3>
-          <p class="sub" style="margin:6px 0 12px;font-style:italic">${esc(c.abertura)}</p>
-          ${ESTRELAS.filter(e => e.c === c.n).map(e => { const f = S.estrelas[e.n] && S.estrelas[e.n].feita; return `<div class="estrela-item ${f ? "feita" : ""} ${e.n === prox.n && !f ? "hoje" : ""}" data-ir="jornada" data-sub='{"estrela":${e.n}}'><div class="n">${f ? "★" : e.n}</div><div><div class="t">${esc(e.titulo)}</div><div class="tipo">${ICONES[e.tipo]} ${esc(TIPOS_RITUAL[e.tipo].nome)}${e.n === M.estrelaGuia ? " · estrela-guia" : ""}</div></div></div>`; }).join("")}
-        </div>`).join("")}
-      <div class="card clique ouro-b" data-ir="ceu" data-sub='"ciclo"'><div class="mini" style="margin-bottom:6px">E depois das 30 estrelas?</div><h3>A jornada continua nos ciclos da Lua</h3><p class="sub" style="margin:6px 0 0">A cada lua nova, um tema novo e quatro encontros com o seu caderno ›</p></div>
-      <div class="linha-btn"><button class="btn fantasma" data-ir="jornada" data-sub='"encerramento"'>Encerramento</button><button class="btn fantasma" data-ir="jornada" data-sub='"passos"'>Próximos passos</button></div>
-    </section>`;
-  }
-
-  function telaEstrela(n, M) {
-    const e = ESTRELAS[n - 1], c = CONSTELACOES[e.c - 1], reg = S.estrelas[n] || {}, tipo = TIPOS_RITUAL[e.tipo];
-    return `<section class="pagina">
-      <header class="topo">${voltar("jornada")}<span class="chip ouro">Estrela ${n} de 30</span></header>
-      <div class="mini">Constelação 0${c.n} · ${esc(c.nome)}</div>
-      <h1 style="margin:8px 0 6px">${esc(e.titulo)}</h1>
-      <p class="sub">${esc(e.sub)}</p>
-
-      <div class="card">
-        <div class="secao"><div class="rot"><div class="ic">☀</div><div><span class="mini">Despertar</span><small>Sua mensagem</small></div></div>
-          ${e.msg.map(p => `<p>${esc(p)}</p>`).join("")}</div>
-      </div>
-      <div class="card ouro-b"><span class="brilho o"></span><div class="mini" style="margin-bottom:8px">Frequência da noite</div><p class="freq">“${esc(e.freq)}”</p></div>
-      <div class="card neon"><span class="brilho v"></span>
-        <div class="secao"><div class="rot"><div class="ic">${ICONES[e.tipo]}</div><div><span class="mini">Cultivar</span><small>${esc(tipo.nome)} · 5 minutos</small></div></div>
-          <p class="sub">${esc(e.ritualIntro)}</p>
-          <p class="freq" style="font-size:19px;font-style:normal">“${esc(e.pergunta)}”</p>
-          <ul class="lista">${e.passos.map(p => `<li><span class="ic">✦</span><span>${esc(p)}</span></li>`).join("")}</ul>
-        </div>
-        <div class="campo" style="margin-top:8px"><label>Seu caderno (fica salvo aqui)</label><textarea id="diario" placeholder="Escreva com calma…">${esc(reg.diario || "")}</textarea><span class="salvo" id="salvo-diario">salvo ✓</span></div>
-      </div>
-      <div class="card">
-        <div class="secao"><div class="rot"><div class="ic">❀</div><div><span class="mini">Florescer</span><small>Sua missão de amanhã</small></div></div>
-          <p>${esc(e.missao)}</p><p class="serif italico" style="font-size:18px;color:var(--ouro2)">${esc(e.missaoFrase)}</p></div>
-      </div>
-      ${reg.feita
-        ? `<button class="btn feito" id="desmarcar">★ Estrela acesa em ${fmtCurta(reg.data)} · ${esc(e.conquista)}</button>`
-        : `<button class="btn primario" id="marcar">Marcar a estrela ${n} no meu mapa ★</button>`}
-      <div class="linha-btn" style="margin-top:12px">
-        ${n > 1 ? `<button class="btn fantasma" data-ir="jornada" data-sub='{"estrela":${n - 1}}'>‹ Estrela ${n - 1}</button>` : ""}
-        ${n < 30 ? `<button class="btn fantasma" data-ir="jornada" data-sub='{"estrela":${n + 1}}'>Estrela ${n + 1} ›</button>` : ""}
-      </div>
-    </section>`;
-  }
-
-  function telaEncerramento() {
-    return `<section class="pagina">
-      <header class="topo">${voltar("jornada")}</header>
-      <div class="mini">Conclusão</div><h1 style="margin:8px 0">Reflexão de encerramento</h1>
-      <p class="sub">Trinta noites atrás, você abriu este caminho com uma vontade. Não há respostas certas, apenas as suas.</p>
-      ${ENCERRAMENTO.map((q, i) => `<div class="card"><div class="mini">${i + 1} · ${esc(q.t)}</div><p class="serif" style="font-size:19px;margin:6px 0 10px">${esc(q.q)}</p><textarea data-enc="${q.k}" placeholder="Responda com calma…">${esc(S.encerramento[q.k] || "")}</textarea></div>`).join("")}
-      <p class="aviso center">Você não precisava de uma vida perfeita para começar. Precisava de um começo possível. E você fez isso.</p>
-    </section>`;
-  }
-  function telaPassos() {
-    return `<section class="pagina">
-      <header class="topo">${voltar("jornada")}</header>
-      <div class="mini">Conclusão</div><h1 style="margin:8px 0">Meus próximos passos</h1>
-      <p class="sub">A jornada termina, mas o caminho continua. Volte a esta página sempre que precisar lembrar para onde está indo.</p>
-      ${PROXIMOS_PASSOS.map(q => `<div class="card"><label style="margin:0 0 8px">${esc(q.t)}</label><textarea data-passo="${q.k}" style="min-height:80px">${esc(S.passos[q.k] || "")}</textarea></div>`).join("")}
-      <p class="aviso center">Dica: daqui a 30 dias, refaça a Estrela 22 e a Estrela 28. Você vai se surpreender com o que mudou.</p>
-    </section>`;
   }
 
   function telaCeu(M) {
@@ -702,7 +597,7 @@
         return `<div class="card clique" data-ir="ceu" data-sub='"ciclo"'>
           <div class="card-cab"><span class="mini">Ciclo da Lua · dia ${Math.floor(L.idade) + 1} de 29</span><span class="chip ouro">${feito} de 4 encontros</span></div>
           <h3>Tema: ${esc(t.nome)}</h3><p class="sub" style="margin:6px 0 10px">${esc(t.pergunta)}</p>${barra(L.idade / ASTROS.SINODICO * 100)}
-          <p class="aviso" style="margin-top:8px">A jornada que continua depois das 30 estrelas. Toque para abrir ›</p></div>`; })()}
+          <p class="aviso" style="margin-top:8px">A cada lua nova, um tema novo e quatro encontros com o seu caderno. Toque para abrir ›</p></div>`; })()}
 
       <div class="card ouro-b"><span class="brilho o"></span>
         <div class="card-cab"><span class="mini">Contagem para ${anoV}</span><span class="chip ouro">ano universal ${univ}</span></div>
@@ -745,7 +640,6 @@
       <div class="card">
         <div class="campo"><label>Nome completo</label><input id="p-nome" value="${esc(S.perfil.nome)}"></div>
         <div class="campo"><label>Data de nascimento</label><input id="p-nasc" type="date" value="${S.perfil.nascimento}"></div>
-        <div class="campo"><label>Início da jornada das 30 estrelas</label><input id="p-inicio" type="date" value="${S.perfil.inicioJornada || ""}"></div>
         <div class="grade2"><div class="campo"><label>Meu foco</label><select id="p-foco">${Object.entries(COMBOS.FOCO).map(([k, f]) => `<option value="${k}" ${S.foco === k ? "selected" : ""}>${f.nome}</option>`).join("")}</select></div>
         <div class="campo"><label>Tratamento</label><select id="p-genero"><option value="f" ${S.genero !== "m" ? "selected" : ""}>Feminino</option><option value="m" ${S.genero === "m" ? "selected" : ""}>Masculino</option></select></div></div>
         <button class="btn primario" id="p-salvar">Salvar alterações</button>
@@ -753,7 +647,7 @@
       ${window.CONTA ? `<div class="card neon"><span class="brilho v"></span>${contaHTML()}</div>` : ""}
       <div class="card">
         <div class="mini" style="margin-bottom:10px">Lembrete da noite</div>
-        <p class="sub" style="margin-bottom:10px">Adicione ao calendário do celular um lembrete diário às 21h para abrir sua carta e sua estrela.</p>
+        <p class="sub" style="margin-bottom:10px">Adicione ao calendário do celular um lembrete diário às 21h para abrir sua carta e fazer a prática do dia.</p>
         <button class="btn neon pequeno" id="lembrete" style="width:100%">Lembrar toda noite às 21h</button>
         <div class="sep"></div>
         <div class="mini" style="margin-bottom:10px">Seus dados</div>
@@ -778,7 +672,6 @@
       if (ev.target.closest("input, textarea, select, button:not([data-ir])")) return;
       const sub = el.dataset.sub ? JSON.parse(el.dataset.sub) : null; ir(el.dataset.ir, sub, el.classList.contains("voltar"));
     }));
-    app.querySelectorAll("[data-estrela]").forEach(g => g.addEventListener("click", () => ir("jornada", { estrela: Number(g.dataset.estrela) })));
 
     // hoje
     const nivel = $("#nivel"); if (nivel) nivel.onchange = () => { const k = hojeKey(); S.dias[k] = Object.assign(S.dias[k] || {}, { nivel: Number(nivel.value) }); salvar(); presenca(); render(true); };
@@ -795,12 +688,6 @@
     app.querySelectorAll("[data-dia]").forEach(inp => inp.addEventListener("input", debounce(() => { const k = hojeKey(); S.dias[k] = Object.assign(S.dias[k] || {}, { [inp.dataset.dia]: inp.value }); salvar(); piscar("#salvo-dia"); }, 400)));
     const comp = $("#compartilhar"); if (comp) comp.onclick = () => compartilhar(M);
 
-    // estrela
-    const diario = $("#diario"); if (diario) diario.addEventListener("input", debounce(() => { const n = rota.sub.estrela; S.estrelas[n] = Object.assign(S.estrelas[n] || {}, { diario: diario.value }); salvar(); piscar("#salvo-diario"); }, 400));
-    const marcar = $("#marcar"); if (marcar) marcar.onclick = () => { const n = rota.sub.estrela; S.estrelas[n] = Object.assign(S.estrelas[n] || {}, { feita: true, data: hojeKey() }); salvar(); presenca(); celebrar(); toast(`Estrela ${n} acesa ★ ${ESTRELAS[n - 1].conquista}`); setTimeout(render, 900); };
-    const desm = $("#desmarcar"); if (desm) desm.onclick = () => { if (confirm("Apagar a marcação desta estrela? Seu texto no caderno continua salvo.")) { const n = rota.sub.estrela; S.estrelas[n].feita = false; salvar(); render(); } };
-    app.querySelectorAll("[data-enc]").forEach(t => t.addEventListener("input", debounce(() => { S.encerramento[t.dataset.enc] = t.value; salvar(); }, 400)));
-    app.querySelectorAll("[data-passo]").forEach(t => t.addEventListener("input", debounce(() => { S.passos[t.dataset.passo] = t.value; salvar(); }, 400)));
 
     // ciclo da lua e compatibilidade
     app.querySelectorAll("[data-lua]").forEach(t => t.addEventListener("input", debounce(() => { const n = t.dataset.n; S.luas[n] = Object.assign(S.luas[n] || {}, { [t.dataset.lua]: t.value }); salvar(); presenca(); }, 500)));
@@ -816,16 +703,16 @@
 
     // perfil
     const ps = $("#p-salvar"); if (ps) ps.onclick = () => {
-      const nome = $("#p-nome").value.trim(), nasc = $("#p-nasc").value, ini = $("#p-inicio").value;
+      const nome = $("#p-nome").value.trim(), nasc = $("#p-nasc").value;
       if (nome.split(/\s+/).length < 2 || !nasc) return toast("Nome completo e data são obrigatórios.");
-      S.perfil = { nome, nascimento: nasc, inicioJornada: ini || S.perfil.inicioJornada }; S.foco = $("#p-foco").value; S.genero = $("#p-genero").value; salvar(); toast("Mapa atualizado ✦"); render();
+      S.perfil = { nome, nascimento: nasc }; S.foco = $("#p-foco").value; S.genero = $("#p-genero").value; salvar(); toast("Mapa atualizado ✦"); render();
     };
     const ex = $("#exportar"); if (ex) ex.onclick = () => { const b = new Blob([JSON.stringify(S, null, 2)], { type: "application/json" }); const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = `segredo-das-estrelas-backup-${hojeKey()}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); };
     const ib = $("#importar-btn"), inp = $("#importar"); if (ib) { ib.onclick = () => inp.click(); inp.onchange = () => { const f = inp.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { try { const d = JSON.parse(r.result); if (!d.perfil) throw new Error("sem perfil"); S = Object.assign(padrao(), d); salvar(); toast("Backup restaurado ✦"); render(); } catch (e) { console.warn("[importar]", e); toast("Arquivo inválido."); } }; r.readAsText(f); }; }
     const lem = $("#lembrete"); if (lem) lem.onclick = () => {
       const d = new Date(), p2 = n => String(n).padStart(2, "0"), dia = `${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}`, url = location.href.split("#")[0].split("?")[0];
       const ics = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//O Segredo das Estrelas//PT", "BEGIN:VEVENT", `UID:segredo-das-estrelas-${Date.now()}@app`, `DTSTAMP:${dia}T000000Z`, `DTSTART:${dia}T210000`, `DTEND:${dia}T211000`, "RRULE:FREQ=DAILY",
-        "SUMMARY:✦ Sua carta e sua estrela de hoje", `DESCRIPTION:Cinco minutos para você. Abra: ${url}`, `URL:${url}`, "BEGIN:VALARM", "TRIGGER:PT0M", "ACTION:DISPLAY", "DESCRIPTION:Sua carta de hoje está esperando", "END:VALARM", "END:VEVENT", "END:VCALENDAR"].join("\r\n");
+        "SUMMARY:✦ Sua carta e sua prática de hoje", `DESCRIPTION:Cinco minutos para você. Abra: ${url}`, `URL:${url}`, "BEGIN:VALARM", "TRIGGER:PT0M", "ACTION:DISPLAY", "DESCRIPTION:Sua carta de hoje está esperando", "END:VALARM", "END:VEVENT", "END:VCALENDAR"].join("\r\n");
       const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([ics], { type: "text/calendar" })); a.download = "segredo-das-estrelas-lembrete.ics"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
       toast("Abra o arquivo baixado para adicionar ao calendário ✦");
     };
@@ -893,7 +780,7 @@
 
   /* ---------- núcleo exposto para os módulos (premium.js, telas-premium.js) ---------- */
   window.CDA = {
-    CONFIG, get S() { return S; }, get rota() { return rota; }, salvar, esc, toast, ir, render, mapa, barra, chips, voltar, topo, celebrar, debounce, presenca,
+    CONFIG, get S() { return S; }, get rota() { return rota; }, salvar, esc, toast, ir, render, mapa, barra, chips, voltar, topo, celebrar, debounce, presenca, sequencia,
     hojeKey, fmtCurta, fmtData, MESES, DIAS, DIAS_C, diasPessoais, melhor, luasDoMes, diaExt, ymKey, primeiroNome, diaDoAno, arvoreSVG, $
   };
 
