@@ -35,7 +35,7 @@ No ar: https://constelacao-app.vercel.app
 | `telas-bosque.js` | Bosque Encantado (capítulo Trilha do Caminho): pontos tocáveis, painéis da Flor do Dia, da Raiz da Intenção e da Pedra da Energia, "Minhas descobertas", celebração da estrela acesa |
 | `bosque-cena.js` | A cena e a câmera do bosque: pintura com profundidade em WebGL, partículas, gestos (arrastar x tocar) e a versão simples para aparelhos sem WebGL |
 | `dados/bosque.js` | Conteúdo do bosque: sete práticas da flor por foco, passos da pedra e as regras do dia (mesma prática o dia inteiro, troca pelo calendário) |
-| `img/` | Pintura do bosque em AVIF e WebP. Origem e como trocar em `img/CREDITOS.md` |
+| `img/` | Pintura do bosque em AVIF e WebP. Arquivos e como trocar em `img/LEIA-ME.md` |
 | `tests/` | Testes automáticos (Node puro) do núcleo, do foco, do bosque e do service worker |
 | `servidor/` | Pontos de integração Kiwify, Supabase e app, e o plano de autorização do conteúdo no servidor (fontes não publicadas) |
 

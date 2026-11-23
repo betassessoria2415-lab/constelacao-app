@@ -56,7 +56,7 @@ window.KABALA = (function () {
   const SUBIDA = {
     alto: "Você está na faixa alta da escala. Aproveite: é daqui que os pedidos saem mais nítidos. Visualize, agradeça e dê um passo inspirado hoje.",
     medio: "Você está no meio da escala. O movimento é curto: troque a preocupação por uma pergunta prática (“o que eu posso fazer em 10 minutos?”) e faça.",
-    baixo: "Você está na faixa baixa, e tudo bem: sentir é informação. A regra de Abraham-Hicks é subir um degrau por vez, não pular para a alegria. Hoje, o objetivo é só sentir um pouco de alívio: respirar, escrever o que pesa, pedir ajuda, descansar."
+    baixo: "Você está na faixa baixa, e tudo bem: sentir é informação. A regra é subir um degrau por vez, não pular para a alegria. Hoje, o objetivo é só sentir um pouco de alívio: respirar, escrever o que pesa, pedir ajuda, descansar."
   };
 
   return { SEFIROT, CAMINHOS, sefiraDe, NOMES72, ESCALA, SUBIDA };

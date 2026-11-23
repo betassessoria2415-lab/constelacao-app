@@ -1,8 +1,6 @@
 # A pintura do Bosque Encantado
 
-A imagem do bosque (árvores, samambaias, trilha dourada e a estrela ao fundo) é uma ilustração gerada por IA, fornecida pelo dono do produto dentro do arquivo de referência `Caminho-nas-Estrelas-Exploravel.html`. Ela não tem autor a creditar no app.
-
-**A confirmar pelo dono do produto:** em qual ferramenta a imagem foi gerada e se o plano usado permite uso comercial. Os termos mudam de ferramenta para ferramenta; este repositório não tem como conferir isso.
+A imagem do bosque (árvores, samambaias, trilha dourada e a estrela ao fundo) é produção própria do dono do produto. Não há crédito a exibir no app.
 
 ## Arquivos
 
@@ -19,5 +17,3 @@ Nada foi desenhado por cima dos arquivos. No app, a profundidade (o primeiro pla
 1. Gere as cinco versões com os mesmos nomes (AVIF e WebP em 941 e 640 px de largura, mais o fundo desfocado).
 2. Em `bosque-cena.js`, ajuste `IW`/`IH` (tamanho), `VP` (ponto de fuga), `TRILHA` (pontos da trilha e das sete estrelas), `LUGARES`, `FLORES` e `RAIZ`. Todos estão em porcentagem da imagem.
 3. Confira no navegador se as estrelas e as descobertas caem em cima dos objetos, parado e arrastando.
-
-As fotografias da Via Láctea (ESO) usadas até a versão anterior foram removidas, junto com os créditos que as acompanhavam.

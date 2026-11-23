@@ -433,7 +433,7 @@
       </div>
       <div class="card">
         <div class="mini" style="margin-bottom:8px">Intenção de hoje · método WOOP</div>
-        <p class="sub" style="margin-bottom:10px">Desejo, obstáculo e plano. Pesquisas de Gabriele Oettingen mostram que imaginar o obstáculo junto do desejo é o que faz a intenção virar ação.</p>
+        <p class="sub" style="margin-bottom:10px">Desejo, obstáculo e plano. Imaginar o obstáculo junto do desejo é o que faz a intenção virar ação.</p>
         <div class="campo"><label>O que eu desejo hoje</label><input data-dia="desejo" value="${esc(dia.desejo || "")}" placeholder="Ex.: separar R$ 20 para o meu objetivo"></div>
         <div class="campo"><label>O que pode atrapalhar</label><input data-dia="obstaculo" value="${esc(dia.obstaculo || "")}" placeholder="Ex.: a vontade de pedir delivery"></div>
         <div class="campo"><label>Se acontecer isso, então eu…</label><input data-dia="plano" value="${esc(dia.plano || "")}" placeholder="Ex.: bebo água, espero 10 minutos e cozinho"></div>

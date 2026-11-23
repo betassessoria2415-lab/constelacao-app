@@ -126,7 +126,7 @@ window.GUIA_APP = (function () {
   /* ---------- pedaços das telas de estrela ---------- */
   function tecnicaLinha(id, destaque) {
     const t = GUIA.TECNICAS[id], e = C().esc, sub = id === "ritual1" ? "ritual" : "t-" + id;
-    return `<div class="estrela-item ${feitaHoje(id) ? "feita" : ""} ${destaque ? "hoje" : ""}" data-ir="guia" data-sub='"${sub}"' role="button" tabindex="0"><div class="n">${feitaHoje(id) ? "✓" : t.min + "’"}</div><div><div class="t">${e(t.nome)}</div><div class="tipo">${e(t.autor)} · ${e(t.obra)}</div></div></div>`;
+    return `<div class="estrela-item ${feitaHoje(id) ? "feita" : ""} ${destaque ? "hoje" : ""}" data-ir="guia" data-sub='"${sub}"' role="button" tabindex="0"><div class="n">${feitaHoje(id) ? "✓" : t.min + "’"}</div><div><div class="t">${e(t.nome)}</div></div></div>`;
   }
   const campoHTML = (f, v) => `<div class="campo"><label for="cp-${f.k}">${C().esc(f.r)}</label><textarea id="cp-${f.k}" data-campo="${f.k}" style="min-height:70px" placeholder="${C().esc(f.p || "")}">${C().esc(v || "")}</textarea></div>`;
   function marcoHTML(et) {
@@ -217,14 +217,13 @@ window.GUIA_APP = (function () {
       <h1 style="margin:8px 0 6px">${e(et.nome)}</h1>
       <p class="sub">${e(et.curto)}</p>`;
     const ideia = `<div class="card neon"><span class="brilho v"></span>
-        <p class="freq">“${e(et.axioma)}”</p><p class="aviso" style="margin:4px 0 12px">O Caibalion, 1908</p>
+        <p class="freq" style="margin-bottom:12px">“${e(et.axioma)}”</p>
         <p>${e(et.ensino)}</p>
         <div class="area"><div class="ic">➶</div><div><div class="mini">O que você faz nesta estrela</div><p>${e(et.aplicar)}</p></div></div>
-        <details class="mais" style="margin-top:12px"><summary>De onde vem</summary><p class="sub" style="margin:8px 0 0">${e(et.tradicao)}</p></details>
       </div>`;
     if (est === "futura") return `<section class="pagina">${cab}${ideia}<div class="card trancado"><p class="sub" style="margin:0">Esta estrela abre quando você acender a estrela ${n - 1}, “${e(GUIA.ETAPAS[n - 2].nome)}”.${n > ETAPAS_LIVRES && !liberada(n) ? " Ela faz parte do plano Completo." : ""}</p></div></section>`;
     if (est === "trancada") return `<section class="pagina">${cab}
-      <div class="card neon"><span class="brilho v"></span><p class="freq">“${e(et.axioma)}”</p><p class="aviso" style="margin:4px 0 12px">O Caibalion, 1908</p>
+      <div class="card neon"><span class="brilho v"></span><p class="freq" style="margin-bottom:12px">“${e(et.axioma)}”</p>
         ${PREMIUM.cadeado("guia", `<p>${e(et.ensino)}</p><p>${e(et.aplicar)}</p>`, `As estrelas ${et.n} a 7: ${GUIA.ETAPAS.slice(et.n - 1).map(x => x.nome.toLowerCase()).join(", ")}.`)}</div>
       <div class="card"><div class="mini" style="margin-bottom:6px">Para experimentar</div><p class="sub" style="margin-bottom:10px">Uma prática guiada do plano Completo fica aberta para você conhecer.</p>${tecnicaLinha(AMOSTRA, true)}</div></section>`;
     if (est === "concluida") return `<section class="pagina">${cab}${ideia}
@@ -237,7 +236,7 @@ window.GUIA_APP = (function () {
       ${simbolosHTML(et, M)}
       <div class="card ouro-b" id="pratica-hoje"><span class="brilho o"></span>
         <div class="card-cab"><span class="mini">Prática de hoje · ${tec.min} min</span><span class="chip ${feita ? "verde" : "ouro"}">${feita ? "feita ✓" : d + " de " + ALVO}</span></div>
-        <h2>${e(tec.nome)}</h2><p class="sub" style="margin:4px 0 12px">${e(tec.autor)} · ${e(tec.obra)}</p>
+        <h2 style="margin-bottom:12px">${e(tec.nome)}</h2>
         ${idHoje === "ritual1" ? `<button class="btn primario" data-ir="guia" data-sub='"ritual"'>Começar o primeiro ritual ✦</button>` : `
         <ol class="passos">${tec.passos.map(p => `<li>${e(p)}</li>`).join("")}</ol>
         ${feita ? `<button class="btn feito" disabled style="margin-top:14px">✓ Prática de hoje concluída</button>` : `
@@ -313,13 +312,11 @@ window.GUIA_APP = (function () {
     return `<section class="pagina">
       <header class="topo">${c.rota.de === "hoje" ? c.voltar("hoje") : c.voltar("guia", et && et.n <= Math.min(T().etapa, 7) ? "e-" + et.n : null)}<span class="chip ouro">${t.min} minutos</span></header>
       <div class="mini">${et ? "Estrela " + et.n + " · " + e(et.principio) : "Prática"}${id === AMOSTRA && et && !liberada(et.n) ? " · amostra do Completo" : ""}</div>
-      <h1 style="margin:8px 0 6px">${e(t.nome)}</h1>
-      <p class="sub">${e(t.autor)} · ${e(t.obra)}</p>
+      <h1 style="margin:8px 0 14px">${e(t.nome)}</h1>
       <div class="card neon"><span class="brilho v"></span>
         <div class="mini" style="margin-bottom:8px">Passo a passo</div>
         ${aberta ? `<ol class="passos">${t.passos.map(p => `<li>${e(p)}</li>`).join("")}</ol>` : `<ol class="passos"><li>${e(t.passos[0])}</li></ol>${PREMIUM.cadeado("guia", `<ol class="passos">${t.passos.slice(1).map(p => `<li>${e(p)}</li>`).join("")}</ol>`, "O passo a passo completo desta prática.")}`}
       </div>
-      <div class="card"><div class="mini" style="margin-bottom:8px">De onde vem</div><p style="margin:0">${e(t.nota)}</p></div>
       ${podeMarcar ? (feitaHoje(id) ? `<button class="btn feito" disabled>✓ Prática de hoje concluída</button>` : `
         <div class="campo"><label for="g-sente">Como você se sente depois? (uma linha, opcional)</label><input id="g-sente" maxlength="140" placeholder="Ex.: mais leve, com menos pressa"></div>
         <button class="btn primario" id="g-pratica" data-id="${id}">Concluí esta prática hoje ✦</button>`) : ""}
@@ -334,7 +331,7 @@ window.GUIA_APP = (function () {
       <div class="mini">Resgate de energia</div>
       <h1 style="margin:8px 0">A energia caiu. E agora?</h1>
       <p class="sub">Não é para fingir alegria. É para subir um degrau. Um dia difícil não é falha sua: escolha um exercício, faça agora e volte aqui.</p>
-      ${GUIA.RESGATES.map(r => `<div class="card clique ${meu === r.nome ? "ouro-b" : ""}" data-ir="guia" data-sub='"t-${r.tecnica}"' role="button" tabindex="0"><div class="card-cab"><span class="mini">${e(r.tempo)}${meu === r.nome ? " · seu ritual de retomada" : ""}</span><span class="chip violeta">${e(GUIA.TECNICAS[r.tecnica].autor)}</span></div><h3>${e(r.nome)}</h3><p class="sub" style="margin:6px 0 0">${e(r.texto)} Toque para abrir ›</p></div>`).join("")}
+      ${GUIA.RESGATES.map(r => `<div class="card clique ${meu === r.nome ? "ouro-b" : ""}" data-ir="guia" data-sub='"t-${r.tecnica}"' role="button" tabindex="0"><div class="card-cab"><span class="mini">${e(r.tempo)}${meu === r.nome ? " · seu ritual de retomada" : ""}</span></div><h3>${e(r.nome)}</h3><p class="sub" style="margin:6px 0 0">${e(r.texto)} Toque para abrir ›</p></div>`).join("")}
       ${fezHoje ? `<button class="btn feito" disabled>✓ Resgate de hoje registrado</button>` : `<button class="btn primario" id="g-resgate">Fiz um resgate agora ✦</button>`}
       <p class="aviso center" style="margin-top:12px">Se a tristeza ou a ansiedade estiverem pesadas demais, procure um profissional de saúde mental. O CVV atende 24 horas pelo 188.</p>
     </section>`;
@@ -359,6 +356,10 @@ window.GUIA_APP = (function () {
       <h1 style="margin:8px 0">As fontes</h1>
       <p class="sub">Cada prática vem de um autor, uma escola ou um documento. O que foi criado para este app está identificado como adaptação.</p>
       <div class="card">${GUIA.FONTES.map(f => `<div class="termo"><h3>${e(f.titulo)}</h3><p>${e(f.detalhe)}</p></div>`).join("")}</div>
+      <h2 style="margin:22px 0 10px">Estrela por estrela</h2>
+      <div class="card">${GUIA.ETAPAS.map(x => `<div class="termo"><h3>${x.n}. ${e(x.nome)}</h3><p>“${e(x.axioma)}” (O Caibalion, 1908)<br>${e(x.tradicao)}</p></div>`).join("")}</div>
+      <h2 style="margin:22px 0 10px">Prática por prática</h2>
+      <div class="card">${Object.keys(GUIA.TECNICAS).map(k => { const t = GUIA.TECNICAS[k]; return `<div class="termo"><h3>${e(t.nome)}</h3><p><b>${e(t.autor)}</b> · ${e(t.obra)}${t.nota ? "<br>" + e(t.nota) : ""}</p></div>`; }).join("")}</div>
       <p class="aviso center">Energia e vibração aparecem aqui como jeito de falar da própria experiência. Onde a física é citada, ela é metáfora, não explicação científica.</p>
     </section>`;
   };
@@ -406,7 +407,7 @@ window.GUIA_APP = (function () {
     if (!H.liberada) return `<div class="card clique neon" data-ir="guia" role="button" tabindex="0"><div class="card-cab"><span class="mini">Seu caminho · estrela ${et.n} de 7</span><span class="chip ouro">Completo</span></div><h3>${e(et.nome)}</h3><p class="sub" style="margin:6px 0 0">As três primeiras estrelas estão acesas. Veja como o caminho continua ›</p></div>`;
     return `<div class="card clique neon" data-ir="guia" data-sub='"${H.sub}"' role="button" tabindex="0"><span class="brilho r"></span>
       <div class="card-cab"><span class="mini">Seu caminho · estrela ${et.n} de 7</span><span class="chip violeta">${e(et.nome)}</span></div>
-      <div class="pratica-hoje"><div><div class="mini">Prática de hoje · ${H.tecnica.min} min</div><b>${e(H.tecnica.nome)}</b><div class="aviso">${e(H.tecnica.autor)}</div></div><span class="chip ${H.feita ? "verde" : "ouro"}">${H.feita ? "feita ✓" : "abrir ›"}</span></div>
+      <div class="pratica-hoje"><div><div class="mini">Prática de hoje · ${H.tecnica.min} min</div><b>${e(H.tecnica.nome)}</b></div><span class="chip ${H.feita ? "verde" : "ouro"}">${H.feita ? "feita ✓" : "abrir ›"}</span></div>
       ${c.barra((et.n - 1 + H.dias / ALVO) / 7 * 100)}
     </div>`;
   }
