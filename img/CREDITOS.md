@@ -1,31 +1,23 @@
-# Créditos das fotografias
+# A pintura do Bosque Encantado
 
-As duas imagens de fundo são astrofotografias reais do ESO (European Southern Observatory), usadas sob a licença [Creative Commons Atribuição 4.0 Internacional (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/deed.pt-br), conforme a política de uso do ESO: https://www.eso.org/public/copyright/
+A imagem do bosque (árvores, samambaias, trilha dourada e a estrela ao fundo) é uma ilustração gerada por IA, fornecida pelo dono do produto dentro do arquivo de referência `Caminho-nas-Estrelas-Exploravel.html`. Ela não tem autor a creditar no app.
 
-| Onde aparece | Fotografia | Crédito | Página do original |
-|---|---|---|---|
-| Trilha do Caminho (celular e coluna central) | *Our gleaming Milky Way* | **Juan Carlos Muñoz-Mateos/ESO** | https://www.eso.org/public/images/mw_vertical_ut4_pano-cc/ |
-| Fundo em telas largas (computador) | *The Milky Way panorama* | **ESO/S. Brunier** | https://www.eso.org/public/images/eso0932a/ |
+**A confirmar pelo dono do produto:** em qual ferramenta a imagem foi gerada e se o plano usado permite uso comercial. Os termos mudam de ferramenta para ferramenta; este repositório não tem como conferir isso.
 
-O crédito aparece no próprio app, preso à fotografia: no rodapé da trilha (`Fotografia: Juan Carlos Muñoz-Mateos/ESO`) e no canto do fundo em telas largas (`Fotografia: ESO/S. Brunier`), os dois com link para a página do original.
+## Arquivos
 
-## O que foi alterado
+| Arquivo | O que é |
+|---|---|
+| `bosque-941.{avif,webp}` | A pintura no tamanho original (941 × 1672 px), só recomprimida |
+| `bosque-640.{avif,webp}` | A mesma, reduzida para 640 px de largura (celulares) |
+| `bosque-fundo.webp` | Versão pequena (480 px), desfocada e escurecida, usada como fundo em telas largas |
 
-As imagens **foram modificadas**. Nada foi desenhado por cima da fotografia nem gerado por IA; as alterações são só estas:
+Nada foi desenhado por cima dos arquivos. No app, a profundidade (o primeiro plano anda mais que o fundo), a névoa, o pulso dourado da trilha, os vaga-lumes e as estrelas tocáveis são desenhados em tempo real por `bosque-cena.js` e `telas-bosque.js`.
 
-| Arquivo | Original usado | Recorte | Tratamento |
-|---|---|---|---|
-| `via-celular-{520,780,1170}.{avif,webp}` | JPEG "large", 3105 × 6652 px | x de 26,5% a 85,8%, y de 0% a 80% (proporção 9:26). Fica de fora a base da imagem, com os telescópios | brilho × 0,86 e mistura de 8% com o azul-noite `#0A0B1A`; redimensionada para 520, 780 e 1170 px de largura |
-| `via-desktop-{1600,2560}.{avif,webp}` | JPEG "large", 6000 × 3000 px | faixa central: x de 20% a 80%, y de 22,5% a 77,5% (proporção 24:11) | o mesmo; redimensionada para 1600 e 2560 px de largura |
+## Como trocar a pintura
 
-Sem filtro de nitidez e sem saturação extra. No app, a página ainda escurece a fotografia localmente (degradês em CSS) atrás dos textos, e as estrelas, a linha da trilha e a Estela são elementos do app desenhados por cima, não parte da fotografia.
+1. Gere as cinco versões com os mesmos nomes (AVIF e WebP em 941 e 640 px de largura, mais o fundo desfocado).
+2. Em `bosque-cena.js`, ajuste `IW`/`IH` (tamanho), `VP` (ponto de fuga), `TRILHA` (pontos da trilha e das sete estrelas), `LUGARES`, `FLORES` e `RAIZ`. Todos estão em porcentagem da imagem.
+3. Confira no navegador se as estrelas e as descobertas caem em cima dos objetos, parado e arrastando.
 
-## Como refazer
-
-Baixe os dois JPEG "large" das páginas acima para uma pasta e rode:
-
-```
-python -P ferramentas/fotos.py <pasta-com-os-originais> img
-```
-
-Os originais não ficam no repositório.
+As fotografias da Via Láctea (ESO) usadas até a versão anterior foram removidas, junto com os créditos que as acompanhavam.

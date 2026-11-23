@@ -14,14 +14,14 @@ No ar: https://constelacao-app.vercel.app
 | Arquivo | Papel |
 |---|---|
 | `index.html` | Casca do app e barra de abas |
-| `estilo.css` | Tema (céu azul-noite, dourado âmbar, marfim), trilha do Caminho e regras de movimento reduzido |
+| `estilo.css` | Tema (céu azul-noite, dourado âmbar, marfim), palco do Bosque Encantado e regras de movimento reduzido |
 | `nucleo.js` | Regras puras, sem tela: formato dos dados e migração, backup, ciclos, progresso das estrelas, direitos de acesso, retorno e carta semanal. Expõe `window.NUCLEO` e é o que os testes cobrem |
 | `app.js` | Estado, navegação e as telas Hoje, Mapa, Ciclos e Perfil. Expõe `window.CDA` |
 | `estela.js` | Estela: a estrela-guia (desenho em canvas, falas, primeiro encontro e apresentação opcional) |
 | `conta.js` | Login por e-mail e sincronização dos direitos comprados (Supabase Auth + REST, com RLS) |
 | `premium.js` | Catálogo de módulos pagos ("Portais"), desbloqueio por código (hash SHA-256) e folha de compra |
 | `telas-premium.js` | Clube (plano, acesso de cada pessoa, leituras avulsas) e telas dos módulos: Mapa Profundo, Lua e Ascendente, Nome de Poder, Previsão do ano |
-| `sw.js` | Cache offline: rede primeiro, e a última versão válida quando a rede responde erro (404, 5xx) ou cai. Fotografias vêm do cache primeiro |
+| `sw.js` | Cache offline: rede primeiro, e a última versão válida quando a rede responde erro (404, 5xx) ou cai. Imagens vêm do cache primeiro |
 | `dados/numerologia.js` | Tabela cabalística, acentos, fórmulas e significados |
 | `dados/mapa-profundo.js` | Momentos decisivos, desafios, ciclos de vida, lições cármicas, triângulo da vida |
 | `dados/combos.js` | Leitura combinada de Destino, Expressão e Motivação |
@@ -31,10 +31,12 @@ No ar: https://constelacao-app.vercel.app
 | `dados/previsao-ano.js` | Previsão do ano pessoal |
 | `dados/kabala.js` | Árvore da Vida, 72 Nomes, escala emocional |
 | `dados/guia.js` | Caminho: as 7 estrelas (princípios herméticos), o primeiro ritual, técnicas com autor e obra, dicionário, fontes |
-| `telas-guia.js` | Aba Caminho: trilha das sete estrelas sobre a Via Láctea, primeiro ritual, práticas, registros, resgate de energia, carta semanal |
-| `img/` | Fotografias da Via Láctea (ESO, CC BY 4.0) em AVIF e WebP. Créditos, recortes e tratamento em `img/CREDITOS.md` |
-| `ferramentas/fotos.py` | Refaz as versões responsivas das fotografias a partir dos originais |
-| `tests/` | Testes automáticos (Node puro) do núcleo, do foco e do service worker |
+| `telas-guia.js` | Aba Caminho: as sete estrelas (regras, telas e conclusão), primeiro ritual, práticas, registros, resgate de energia, carta semanal |
+| `telas-bosque.js` | Bosque Encantado (capítulo Trilha do Caminho): pontos tocáveis, painéis da Flor do Dia, da Raiz da Intenção e da Pedra da Energia, "Minhas descobertas", celebração da estrela acesa |
+| `bosque-cena.js` | A cena e a câmera do bosque: pintura com profundidade em WebGL, partículas, gestos (arrastar x tocar) e a versão simples para aparelhos sem WebGL |
+| `dados/bosque.js` | Conteúdo do bosque: sete práticas da flor por foco, passos da pedra e as regras do dia (mesma prática o dia inteiro, troca pelo calendário) |
+| `img/` | Pintura do bosque em AVIF e WebP. Origem e como trocar em `img/CREDITOS.md` |
+| `tests/` | Testes automáticos (Node puro) do núcleo, do foco, do bosque e do service worker |
 | `servidor/` | Pontos de integração Kiwify, Supabase e app, e o plano de autorização do conteúdo no servidor (fontes não publicadas) |
 
 ## Rodar localmente

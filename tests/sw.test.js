@@ -94,9 +94,9 @@ test("atualização a partir da versão anterior: instala, limpa a antiga e segu
 test("a fotografia vem do cache primeiro e não bloqueia a abertura", async () => {
   let chamadas = 0;
   const A = ambiente({ rede: async () => { chamadas++; return resp(200, "foto da rede"); } });
-  assert.equal((await A.pedir("/img/via-celular-780.webp")).corpo, "foto da rede");
+  assert.equal((await A.pedir("/img/bosque-941.webp")).corpo, "foto da rede");
   await new Promise(r => setTimeout(r, 0));
-  assert.equal((await A.pedir("/img/via-celular-780.webp")).corpo, "foto da rede");
+  assert.equal((await A.pedir("/img/bosque-941.webp")).corpo, "foto da rede");
   assert.equal(chamadas, 1, "a segunda vez não vai à rede");
   const src = fs.readFileSync(path.join(__dirname, "..", "sw.js"), "utf8");
   assert.doesNotMatch(src.match(/const ARQUIVOS = \[[\s\S]*?\];/)[0], /img\//, "a foto não entra na instalação: não atrasa a primeira abertura");

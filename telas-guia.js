@@ -1,4 +1,4 @@
-/* Caminho nas Estrelas: a trilha das sete estrelas sobre a Via Láctea, a tela de cada estrela,
+/* Caminho nas Estrelas: as sete estrelas (a trilha em si é o Bosque Encantado, em telas-bosque.js), a tela de cada estrela,
    o primeiro ritual, o retorno do dia seguinte, os registros, a carta semanal e os apoios.
    As regras (o que conta como prática, quando uma estrela acende) ficam em nucleo.js.
    Carrega antes de app.js; usa window.CDA na hora de renderizar. */
@@ -10,9 +10,6 @@ window.GUIA_APP = (function () {
   const ETAPAS_LIVRES = 3;                       // estrelas 4 a 7 pedem o plano Completo (portal "guia")
   const ALVO = GUIA.praticasPorEtapa;
   const AMOSTRA = "revisao";                     // prática guiada do Completo aberta para experimentar
-  // posição de cada estrela sobre a fotografia, em % do recorte 9:26: acompanha a faixa luminosa
-  const POS = [[72, 7], [66, 20], [60, 33], [57, 46], [46, 59], [36, 72], [27, 86]];
-  const FOTO = { url: "https://www.eso.org/public/images/mw_vertical_ut4_pano-cc/", credito: "Juan Carlos Muñoz-Mateos/ESO" };
 
   /* ---------- estado e regras ---------- */
   function T() { const S = C().S; if (!S.trajeto) S.trajeto = N.novoTrajeto(hoje(), (S.ciclosFeitos || []).length + 1, Date.now()); return S.trajeto; }
@@ -69,58 +66,40 @@ window.GUIA_APP = (function () {
       : est === "trancada" ? "Incluída no Completo" : `Abre depois da estrela ${ant}${plano ? " · Completo" : ""}`;
     return { et, est, st };
   }
-  // curva suave pelos sete pontos (viewBox 0 0 100 289, mesma proporção da fotografia)
-  const XY = POS.map(p => [p[0], p[1] * 2.889]);
-  function curva(pts) {
-    if (pts.length < 2) return "";
-    let d = `M${pts[0][0]} ${pts[0][1].toFixed(1)}`;
-    for (let i = 0; i < pts.length - 1; i++) {
-      const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
-      d += `C${(p1[0] + (p2[0] - p0[0]) / 6).toFixed(1)} ${(p1[1] + (p2[1] - p0[1]) / 6).toFixed(1)} ${(p2[0] - (p3[0] - p1[0]) / 6).toFixed(1)} ${(p2[1] - (p3[1] - p1[1]) / 6).toFixed(1)} ${p2[0]} ${p2[1].toFixed(1)}`;
-    }
-    return d;
-  }
-
-  /* ---------- a trilha ---------- */
-  let festa = null;   // { tipo: "ponto" | "estrela", n }: o que acabou de acender, para animar uma vez só
-  function trilhaHTML() {
-    const e = C().esc, at = Math.min(T().etapa, 8), srcset = ext => [520, 780, 1170].map(w => `img/via-celular-${w}.${ext} ${w}w`).join(", ");
-    const acesas = XY.slice(0, Math.min(at, 7)), novo = festa && festa.tipo === "estrela" && at >= 2 && at <= 7;
-    return `<div class="via" id="via">
-      <picture><source type="image/avif" srcset="${srcset("avif")}" sizes="(min-width: 520px) 520px, 100vw"><source type="image/webp" srcset="${srcset("webp")}" sizes="(min-width: 520px) 520px, 100vw">
-        <img class="via-foto" src="img/via-celular-780.webp" alt="" width="780" height="2254" decoding="async" fetchpriority="low"></picture>
-      <div class="via-veu"></div>
-      <svg class="via-linha" viewBox="0 0 100 289" preserveAspectRatio="none" aria-hidden="true">
-        <path class="l-base" d="${curva(XY)}"/>
-        ${acesas.length > 1 ? `<path class="l-acesa" d="${curva(novo ? acesas.slice(0, -1) : acesas)}"/>` : ""}
-        ${novo ? `<path class="l-acesa l-nova" pathLength="1" d="${curva(acesas.slice(-2))}"/>` : ""}
-      </svg>
-      <ol class="via-estrelas">${GUIA.ETAPAS.map(x => { const r = rotulo(x.n), p = POS[x.n - 1], pts = r.est === "andamento" ? Math.min(dias(x), ALVO) : 0;
-        return `<li><button class="est est-${r.est} ${p[0] > 50 ? "esq" : "dir"}" style="left:${p[0]}%;top:${p[1]}%" data-estrela="${x.n}" ${x.n === Math.min(at, 7) ? 'aria-current="step"' : ""} aria-label="Estrela ${x.n} de 7: ${e(x.nome)}. ${e(r.st.replace(/ · /g, ". "))}.">
-          ${simbolo(r.est, pts)}<span class="est-rot"><b>${x.n} · ${e(x.nome)}</b><small>${e(r.st)}</small></span></button></li>`; }).join("")}</ol>
-      <a class="via-credito" href="${FOTO.url}" target="_blank" rel="noopener">Fotografia: ${e(FOTO.credito)}</a>
-    </div>`;
-  }
-  // painel fixo no pé da trilha: intenção, fala da Estela e o botão principal
+  /* ---------- a trilha: o palco é o Bosque Encantado ---------- */
+  let festa = null;   // { tipo: "ponto" | "estrela", n }: o que acabou de acender, para celebrar uma vez só
+  const pegarFesta = () => { const f = festa; festa = null; return f; };
+  // painel no pé do bosque: intenção, fala da Estela e o botão principal
   function rumoHTML() {
     const c = C(), e = c.esc, t = T(), des = intencao(), ret = retornoHTML("rumo");
-    let txt, botao = "Continuar meu caminho", alvo = "continuar";
+    let txt, botao = "Continuar meu caminho", alvo = "continuar", classe = "primario";
     if (concluida()) { txt = "As sete estrelas estão acesas. Agora você escolhe: aprofundar esta intenção ou começar outra."; }
     else {
       const et = etapaAtual(), H = estadoHoje(), d = Math.min(dias(et), ALVO);
       if (!liberada(et.n)) { txt = `Você acendeu as três primeiras estrelas. A partir de “${et.nome}”, o caminho segue no plano Completo.`; botao = "Conhecer o plano Completo"; alvo = "plano"; }
       else if (H.pronta) txt = `Tudo cumprido em “${et.nome}”. Falta só acender a estrela.`;
       else if (H.id === "ritual1" && !H.feita) txt = "A primeira estrela começa com um ritual de três minutos. Eu conduzo você.";
-      else if (H.feita) txt = `A prática de hoje está feita: ${d} de ${ALVO} na estrela ${et.n}. ${faltaTxt(et)}`;
-      else txt = `Estrela ${et.n}, ${d} de ${ALVO} práticas. A de hoje é “${H.tecnica.nome}”, ${H.tecnica.min} minutos.`;
+      else if (H.feita) {   // nada de botão que parece aberto e depois bloqueia: diz quando o caminho continua
+        txt = `Prática de hoje feita: ${d} de ${ALVO} na estrela ${et.n}. ${d < ALVO ? "A próxima prática abre amanhã." : faltaTxt(et)}${d < ALVO && !marco(et).ok ? " O marco da estrela já pode ser cuidado." : ""} Enquanto isso, o bosque está aberto.`;
+        botao = `Rever a estrela ${et.n}`; alvo = "rever"; classe = "fantasma";
+      }
+      else txt = `${lembrancaTxt()}Estrela ${et.n}, ${d} de ${ALVO} práticas. A de hoje é “${H.tecnica.nome}”, ${H.tecnica.min} minutos.`;
     }
     return `<div class="rumo" id="rumo">
       <div class="rumo-fala">${ESTELA.orbe("p")}<div class="rumo-txt">
-        <div class="mini">${des ? "Sua intenção" + (t.ciclo > 1 ? " · ciclo " + t.ciclo : "") : "Sua intenção nasce na primeira prática"}</div>
+        <div class="rumo-cab"><span class="mini">${des ? "Sua intenção" + (t.ciclo > 1 ? " · ciclo " + t.ciclo : "") : "Sua intenção nasce na primeira prática"}</span>
+          <span class="bq-prog" id="bq-prog" role="status" aria-label="${Math.min(t.etapa - 1, 7)} de 7 estrelas acesas"><svg viewBox="-12 -12 24 24" aria-hidden="true"><path d="${P4(10, 3)}"/></svg><b id="bq-prog-n">${Math.min(t.etapa - 1, 7)}</b> de 7</span></div>
         ${des ? `<p class="rumo-int">“${e(curta(des, 96))}”</p>` : ""}
         ${ret ? "" : `<p>${e(txt)}</p>`}</div></div>
-      ${ret || `<button class="btn primario" id="cm-continuar" data-alvo="${alvo}">${e(botao)}</button>`}
+      ${ret || `<button class="btn ${classe}" id="cm-continuar" data-alvo="${alvo}">${e(botao)}</button>`}
     </div>`;
+  }
+
+  // a Estela lembra só o que foi registrado de fato na visita anterior ao bosque
+  function lembrancaTxt() {
+    const l = window.BOSQUE_DADOS ? BOSQUE_DADOS.lembranca(C().S, hoje()) : null; if (!l) return "";
+    const q = N.diasEntre(l.data, hoje()) === 1 ? "Ontem" : "Na sua última visita";
+    return l.tipo === "flor" ? `${q} você levou “${curta(l.palavra, 30)}” da flor. ` : `${q} você escolheu ${l.qualidade} na pedra. `;
   }
 
   /* ---------- o retorno: como foi o gesto de ontem, ou onde recomeçar ---------- */
@@ -189,13 +168,12 @@ window.GUIA_APP = (function () {
     const c = C(), e = c.esc; T();
     const sc = c.secoes("guia", [["trilha", "Trilha"], ["registros", "Registros"], ["apoio", "Apoio"]]);
     const apoio = (sub, ic, tit, txt) => `<div class="card clique" data-ir="guia" data-sub='"${sub}"' role="button" tabindex="0"><div class="card-cab"><span class="portal-ic">${ic}</span><span class="chip">abrir ›</span></div><h3>${tit}</h3><p class="sub" style="margin:6px 0 0">${txt}</p></div>`;
-    return `<section class="pagina caminho">
+    return `<section class="pagina caminho ${sc.at === "trilha" ? "na-trilha" : ""}">
       ${c.topo("Caminho nas Estrelas")}
       ${sc.html}
       ${sc.at === "trilha" ? `<div class="sec-corpo" ${sc.painel}>
         <h1 class="so-leitor">Sua jornada pelas sete estrelas</h1>
-        ${trilhaHTML()}
-        ${rumoHTML()}
+        ${BOSQUE.html()}
       </div>` : sc.at === "registros" ? `<div class="sec-corpo" ${sc.painel}>
         <h1>O que você já escreveu</h1>
         <p class="sub">Tudo o que você registrou neste caminho fica aqui, para reler quando quiser.</p>
@@ -436,31 +414,15 @@ window.GUIA_APP = (function () {
 
   /* ---------- eventos ---------- */
   const reduzido = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
-  // aproximação breve na direção da estrela tocada, antes de abrir a prática
-  function aproximar(n, depois) {
-    const via = document.getElementById("via"); if (!via) return depois();
-    via.style.transformOrigin = `${POS[n - 1][0]}% ${POS[n - 1][1]}%`;
-    via.classList.add(reduzido() ? "some" : "zoom");
-    setTimeout(depois, reduzido() ? 140 : 720);
-  }
+  // aproximação da câmera até a estrela tocada, antes de abrir a prática
+  const aproximar = (n, depois) => (window.BOSQUE ? BOSQUE.aproximar(n, depois) : depois());
   function abrirEstrela(n) {
     const c = C(), est = estado(n), H = estadoHoje();
     if (est === "trancada") return PREMIUM.abrir("guia");
     if (est === "atual" || est === "andamento") return aproximar(n, () => c.ir("guia", H.id === "ritual1" && !H.feita ? "ritual" : "e-" + n));
     c.ir("guia", "e-" + n);
   }
-  function situar() {
-    const via = document.getElementById("via"); if (!via) return;
-    const n = Math.min(T().etapa, 7), alvo = via.querySelector(`[data-estrela="${festa && festa.tipo === "estrela" ? Math.max(1, n - 1) : n}"]`); if (!alvo) return;
-    const r = alvo.getBoundingClientRect(), util = innerHeight - 250;
-    if (festa || r.top < 90 || r.top > util) window.scrollTo({ top: Math.max(0, window.scrollY + r.top - innerHeight * (festa && festa.tipo === "estrela" ? 0.22 : 0.34)) });
-    if (festa) {
-      const el = via.querySelector(`[data-estrela="${festa.n}"]`);
-      if (el) el.classList.add(festa.tipo === "estrela" ? "acendeu" : "ponto-novo");
-      if (festa.tipo === "estrela") { const rumo = document.getElementById("rumo"); if (rumo) rumo.classList.add("avanco"); setTimeout(() => C().celebrar(), 500); }
-      festa = null;
-    }
-  }
+  const situar = () => {};   // o bosque se enquadra sozinho ao montar (telas-bosque.js)
 
   EXT.eventos.push(function () {
     const c = C(), S = c.S, $ = c.$, app = document.getElementById("app");
@@ -474,11 +436,8 @@ window.GUIA_APP = (function () {
     });
     app.querySelectorAll(".estrela-item[role=button], .card.clique[role=button]").forEach(el => el.addEventListener("keydown", ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); el.click(); } }));
 
-    // trilha
-    app.querySelectorAll("[data-estrela]").forEach(b => b.onclick = () => abrirEstrela(Number(b.dataset.estrela)));
-    const cont = $("#cm-continuar"); if (cont) cont.onclick = () => { if (cont.dataset.alvo === "plano") return PREMIUM.abrir("guia"); if (concluida()) return c.ir("guia", "fim"); abrirEstrela(Math.min(T().etapa, 7)); };
-    // a fotografia entra com um fade quando termina de carregar; a tela não espera por ela
-    const img = app.querySelector(".via-foto"); if (img) { if (img.complete && img.naturalWidth) img.classList.add("ok"); else img.addEventListener("load", () => img.classList.add("ok"), { once: true }); }
+    // painel do bosque (os toques nas estrelas e nas descobertas são ligados em telas-bosque.js)
+    const cont = $("#cm-continuar"); if (cont) cont.onclick = () => { if (cont.dataset.alvo === "plano") return PREMIUM.abrir("guia"); if (concluida()) return c.ir("guia", "fim"); if (cont.dataset.alvo === "rever") return c.ir("guia", "e-" + Math.min(T().etapa, 7)); abrirEstrela(Math.min(T().etapa, 7)); };
 
     // retorno do dia seguinte
     app.querySelectorAll("[data-retorno]").forEach(b => b.onclick = () => {
@@ -501,11 +460,11 @@ window.GUIA_APP = (function () {
     };
     const gr = $("#g-resgate"); if (gr) gr.onclick = () => { T(); S.resgates.push({ d: hoje(), em: Date.now() }); c.salvar(); c.presenca(); c.toast("Um degrau acima ✦"); setTimeout(() => c.render(true), 500); };
     const gc = $("#g-concluir"); if (gc) gc.onclick = () => {
-      const t = T(), et = etapaAtual(); if (!pronta(et)) return;
+      const t = T(), et = etapaAtual(); if (gc.disabled || !pronta(et)) return; gc.disabled = true;   // toque repetido não conclui duas vezes
       t.concluidas = t.concluidas || {}; t.concluidas[et.n] = hoje();
-      t.etapa = et.n + 1; t.inicioEtapa = hoje(); t.inicioEtapaEm = Date.now(); c.salvar();
-      festa = { tipo: "estrela", n: et.n };
-      c.toast(et.n < 7 ? `Estrela ${et.n} acesa. Próxima: ${GUIA.ETAPAS[et.n].nome} ✦` : "Sete estrelas acesas ✦");
+      t.etapa = et.n + 1; t.inicioEtapa = hoje(); t.inicioEtapaEm = Date.now();
+      if (!c.salvar()) c.toast("Estrela acesa, mas não consegui gravar neste aparelho. Veja o aviso na tela.");
+      festa = { tipo: "estrela", n: et.n };   // o progresso já foi gravado; a celebração acontece uma vez, no bosque
       c.secao("guia", "trilha"); c.ir("guia");
     };
     const novoCiclo = manter => { if (!confirm(manter ? "Começar um novo ciclo com a mesma intenção? O ciclo atual fica guardado inteiro em Registros." : "Começar um novo ciclo com outra intenção? O ciclo atual fica guardado inteiro em Registros.")) return;
@@ -543,5 +502,6 @@ window.GUIA_APP = (function () {
     };
   });
 
-  return { cardHoje, afirmacaoDoDia, etapaAtual, concluida, estadoHoje, retornoHTML, ecoRetorno, cartaCard, cartaEstado, intencao, liberada, situar, POS };
+  return { cardHoje, afirmacaoDoDia, etapaAtual, concluida, estadoHoje, retornoHTML, ecoRetorno, cartaCard, cartaEstado, intencao, liberada, situar,
+    trajeto: T, rotulo, simbolo, rumoHTML, abrirEstrela, pegarFesta, diasNa: et => Math.min(dias(et), ALVO) };
 })();

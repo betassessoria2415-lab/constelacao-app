@@ -2,9 +2,9 @@
    Rede primeiro; se a rede falhar OU responder com erro (404, 503…), vale a última versão boa guardada.
    Só respostas boas entram no cache, e a limpeza só apaga caches deste app (prefixo "cda-"). */
 const PREFIXO = "cda-";
-const CACHE = PREFIXO + "v8";
-const ARQUIVOS = ["./", "index.html", "estilo.css", "nucleo.js", "app.js", "conta.js", "premium.js", "telas-premium.js", "telas-guia.js", "estela.js", "manifest.webmanifest",
-  "dados/guia.js", "dados/numerologia.js", "dados/astros.js", "dados/kabala.js", "dados/diario.js", "dados/ciclos.js",
+const CACHE = PREFIXO + "v9";
+const ARQUIVOS = ["./", "index.html", "estilo.css", "nucleo.js", "app.js", "conta.js", "premium.js", "telas-premium.js", "telas-guia.js", "bosque-cena.js", "telas-bosque.js", "estela.js", "manifest.webmanifest",
+  "dados/guia.js", "dados/bosque.js", "dados/numerologia.js", "dados/astros.js", "dados/kabala.js", "dados/diario.js", "dados/ciclos.js",
   "dados/mapa-profundo.js", "dados/combos.js", "dados/astro-lua.js", "dados/previsao-ano.js"];
 
 // se algum arquivo falhar, a instalação falha inteira e a versão anterior continua valendo

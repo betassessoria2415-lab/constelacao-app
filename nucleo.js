@@ -22,7 +22,7 @@ window.NUCLEO = (function () {
   function padrao(agoraIso) {
     return { v: VERSAO, perfil: null, tour: false, apresentacao: "", dicas: {}, estrelas: {}, dias: {}, presencas: {}, sinais: [], melhorSeq: 0, luas: {}, pessoas: [], mesVisto: "",
       portais: {}, direitos: {}, direitosEm: 0, contaEmail: "", acessoPor: "", pagamento: null, foco: "", genero: "f", nascHora: "", nascCidade: "", encerramento: {}, passos: {},
-      praticas: {}, resgates: [], ciclosFeitos: [], cartas: [], acesso: false, criadoEm: agoraIso || new Date().toISOString() };
+      praticas: {}, resgates: [], ciclosFeitos: [], cartas: [], bosque: {}, acesso: false, criadoEm: agoraIso || new Date().toISOString() };
   }
   const novoTrajeto = (hoje, ciclo, agora) => ({ etapa: 1, inicio: hoje, inicioEtapa: hoje, inicioEtapaEm: agora || 0, campos: {}, ciclo: ciclo || 1, retornos: [] });
 
@@ -37,7 +37,7 @@ window.NUCLEO = (function () {
   function migrar(bruto) {
     if (!ehObj(bruto)) throw new Error("estado não é um objeto");
     const de = Number(bruto.v) || 1, S = Object.assign(padrao(bruto.criadoEm), clone(bruto));
-    ["dias", "presencas", "luas", "portais", "direitos", "dicas", "estrelas", "encerramento", "passos", "praticas"].forEach(k => { if (!ehObj(S[k])) S[k] = {}; });
+    ["dias", "presencas", "luas", "portais", "direitos", "dicas", "estrelas", "encerramento", "passos", "praticas", "bosque"].forEach(k => { if (!ehObj(S[k])) S[k] = {}; });
     ["sinais", "pessoas", "resgates", "ciclosFeitos", "cartas"].forEach(k => { if (!Array.isArray(S[k])) S[k] = []; });
     S.ciclosFeitos = S.ciclosFeitos.filter(ehObj).map((c, i) => Object.assign({ ciclo: i + 1 }, c));
     if (ehObj(S.trajeto)) {
